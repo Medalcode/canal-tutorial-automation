@@ -1,0 +1,17 @@
+¿Tienes un Android viejo en un cajón? No lo tires. Hoy lo convertimos en un servidor backend.
+
+Primero, instala Termux desde F-Droid. No uses la versión de Play Store, está desactualizada. Abre Termux y ejecuta: pkg update && pkg upgrade.
+
+Luego instala Python y OpenSSH: pkg install python openssh. Verifica con python --version.
+
+Ahora configura SSH para acceder desde tu PC. Ejecuta whoami para saber tu usuario, luego passwd para poner una contraseña, y ifconfig para ver la IP del teléfono.
+
+Desde tu PC conectate con: ssh usuario@ip. Usa la contraseña que pusiste.
+
+Ya conectado, corre un backend simple. Crea un archivo server.py con FastAPI, así: from fastapi import FastAPI. app = FastAPI. arroba get slash. def home. return mensaje Hola desde Android.
+
+Ejecuta con: uvicorn server:app --host 0.0.0.0 --port 8000.
+
+Abre el navegador en tu PC y ve a http://ip-del-telefono:8000. Verás el mensaje.
+
+Ya tienes un servidor 24-7 que consume muy poca energía. En el próximo video haremos esto más útil. Suscríbete para más consejos como este.
