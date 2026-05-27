@@ -1,17 +1,20 @@
-¿Tienes un Android viejo en un cajón? No lo tires. Hoy lo convertimos en un servidor backend.
+##SECCION: intro
+¿Tienes un Android viejo en un cajón? No lo tires. Hoy lo convertimos en un servidor backend con Termux, Python y FastAPI.
 
-Primero, instala Termux desde F-Droid. No uses la versión de Play Store, está desactualizada. Abre Termux y ejecuta: pkg update && pkg upgrade.
+##SECCION: instalacion
+Primero, instala Termux desde F-Droid. No uses la versión de Play Store porque está desactualizada. Abre Termux y ejecuta estos comandos para actualizar e instalar lo necesario.
 
-Luego instala Python y OpenSSH: pkg install python openssh. Verifica con python --version.
+##SECCION: configuracion
+Luego instala Python y OpenSSH. Con Python podrás correr tu backend y con SSH acceder de forma remota desde cualquier PC.
 
-Ahora configura SSH para acceder desde tu PC. Ejecuta whoami para saber tu usuario, luego passwd para poner una contraseña, y ifconfig para ver la IP del teléfono.
+##SECCION: ssh
+Ahora configura SSH. Ejecuta whoami para saber tu usuario, passwd para establecer una contraseña, e ifconfig para conocer la IP del teléfono en tu red local.
 
-Desde tu PC conectate con: ssh usuario@ip. Usa la contraseña que pusiste.
+##SECCION: codigo
+Conéctate desde tu PC con ssh usuario arroba ip. Ya conectado, crea un archivo server.py con FastAPI, importa FastAPI, crea la aplicación, define una ruta raíz que devuelva un mensaje, y ejecuta con uvicorn.
 
-Ya conectado, corre un backend simple. Crea un archivo server.py con FastAPI, así: from fastapi import FastAPI. app = FastAPI. arroba get slash. def home. return mensaje Hola desde Android.
+##SECCION: ejecucion
+Ejecuta con uvicorn server punto app, host cero punto cero punto cero punto cero, puerto 8000. Abre tu navegador y visita http arroba ip del teléfono dos puntos 8000. Verás el mensaje en JSON.
 
-Ejecuta con: uvicorn server:app --host 0.0.0.0 --port 8000.
-
-Abre el navegador en tu PC y ve a http://ip-del-telefono:8000. Verás el mensaje.
-
-Ya tienes un servidor 24-7 que consume muy poca energía. En el próximo video haremos esto más útil. Suscríbete para más consejos como este.
+##SECCION: cierre
+Ya tienes un servidor funcionando 24 sietes que consume muy poca energía. En el próximo video haremos esto mucho más útil. Dale like y suscríbete para no perdértelo.
