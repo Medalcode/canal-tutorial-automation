@@ -14,8 +14,10 @@ from moviepy import (
     CompositeVideoClip,
     ImageClip,
     TextClip,
+    VideoClip,
     concatenate_videoclips,
 )
+from moviepy.video.fx import FadeIn, FadeOut
 
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -194,6 +196,90 @@ def build_scene_clip(scene):
     return CompositeVideoClip([bg, title_clip] + panel_clips).with_duration(dur)
 
 
+def make_intro(duration=6):
+    clips = []
+    # Background with subtle gradient via layered clips
+    bg = ColorClip(size=(W, H), color=BG_COLOR).with_duration(duration)
+    clips.append(bg)
+
+    # Accent bar that grows
+    bar = (ColorClip(size=(4, 200), color=(0, 200, 0))
+           .with_duration(duration)
+           .with_position(("center", 160)))
+    clips.append(bar)
+
+    # Title typewriter (word by word)
+    title_words = ["Android", "como", "Servidor"]
+    gap = duration / (len(title_words) + 2)
+    for i, word in enumerate(title_words):
+        t = (TextClip(font=FONT_BOLD, text=word, font_size=80, color="white")
+             .with_position(("center", 220 + i * 90))
+             .with_start(0.5 + (i + 1) * gap * 0.3)
+             .with_duration(duration))
+        clips.append(t)
+
+    # Subtitle fade in
+    sub = (TextClip(font=FONT, text="Con Termux + Python + FastAPI", font_size=40, color="#00FF00")
+           .with_position(("center", 500))
+           .with_start(3.5)
+           .with_duration(duration - 3.5)
+           .with_effects([FadeIn(0.5)]))
+    clips.append(sub)
+
+    # Bottom info line
+    info = (TextClip(font=FONT, text="Pipeline automatizado con Python", font_size=22, color=(100, 100, 100))
+            .with_position(("center", H - 80))
+            .with_start(4.0)
+            .with_duration(duration - 4.0)
+            .with_effects([FadeIn(0.5)]))
+    clips.append(info)
+
+    return CompositeVideoClip(clips).with_duration(duration)
+
+
+def make_outro(duration=8):
+    clips = []
+    bg = ColorClip(size=(W, H), color=BG_COLOR).with_duration(duration)
+    clips.append(bg)
+
+    thanks = (TextClip(font=FONT_BOLD, text="Gracias por ver", font_size=80, color="white")
+              .with_position(("center", 200))
+              .with_start(1.0)
+              .with_duration(duration - 2)
+              .with_effects([FadeIn(0.8)]))
+    clips.append(thanks)
+
+    sub = (TextClip(font=FONT, text="Suscribete para mas tutoriales como este", font_size=36, color="#00FF00")
+           .with_position(("center", 320))
+           .with_start(2.0)
+           .with_duration(duration - 2.5)
+           .with_effects([FadeIn(0.6)]))
+    clips.append(sub)
+
+    btn = (ColorClip(size=(360, 70), color=(200, 0, 0))
+           .with_duration(4)
+           .with_position(("center", 430))
+           .with_start(3.0)
+           .with_effects([FadeIn(0.5)]))
+    clips.append(btn)
+
+    btn_text = (TextClip(font=FONT_BOLD, text="SUSCRIBIRSE", font_size=36, color="white")
+                .with_position(("center", 430))
+                .with_start(3.0)
+                .with_duration(4)
+                .with_effects([FadeIn(0.5)]))
+    clips.append(btn_text)
+
+    # Fade out at end
+    fade_out = (ColorClip(size=(W, H), color=(0, 0, 0))
+                .with_duration(1.5)
+                .with_start(duration - 1.5)
+                .with_effects([FadeIn(1.5)]))
+    clips.append(fade_out)
+
+    return CompositeVideoClip(clips).with_duration(duration)
+
+
 def compose_video(audio_path, subtitle_chunks, output_video):
     audio = AudioFileClip(audio_path)
     total_duration = audio.duration
@@ -209,14 +295,28 @@ def compose_video(audio_path, subtitle_chunks, output_video):
     for scene in scenes:
         all_clips.append(build_scene_clip(scene))
 
-    print(f"Escenas: {len(all_clips)}")
+    intro = make_intro(6)
+    outro = make_outro(8)
+    all_clips = [intro] + all_clips + [outro]
+
+    print(f"Total clips (intro + {len(all_clips)-2} escenas + outro): {len(all_clips)}")
     final = concatenate_videoclips(all_clips, method="chain")
 
     final_dur = final.duration
     audio_dur = min(audio.duration, final_dur)
     audio_trunc = audio.subclipped(0, audio_dur)
-    final = final.with_audio(audio_trunc)
 
+    scenes_start = 6.0
+    scenes_end = scenes_start + audio_dur
+    if scenes_end > final_dur:
+        scenes_end = final_dur
+    audio_shifted = audio_trunc.with_start(scenes_start).with_duration(scenes_end - scenes_start)
+    final = final.with_audio(audio_shifted)
+
+    INTRO_DUR = 6.0
+    for sc in subtitle_chunks:
+        sc["start"] += INTRO_DUR
+        sc["end"] += INTRO_DUR
     sub_clips = make_subtitle_clips(subtitle_chunks, W, H)
     final = CompositeVideoClip([final] + sub_clips)
 
@@ -227,7 +327,8 @@ def compose_video(audio_path, subtitle_chunks, output_video):
         fps=24,
         codec="libx264",
         audio_codec="aac",
-        preset="ultrafast",
+        preset="fast",
+        bitrate="2000k",
         ffmpeg_params=[
             "-movflags", "+faststart",
             "-profile:v", "baseline",
@@ -240,32 +341,51 @@ def compose_video(audio_path, subtitle_chunks, output_video):
 
 def post_process(input_video):
     music_path = os.path.join(ASSETS_DIR, "musica_fondo.mp3")
-    output_w_music = os.path.join(OUTPUT_DIR, "video_con_musica.mp4")
+    temp_music = os.path.join(OUTPUT_DIR, "video_temp_music.mp4")
+    output_1080p = os.path.join(OUTPUT_DIR, "video_con_musica.mp4")
     thumb_path = os.path.join(OUTPUT_DIR, "thumbnail.png")
+
+    current = input_video
 
     if os.path.exists(music_path):
         print("Post-proceso: anadiendo musica de fondo...")
         subprocess.run([
             FFMPEG_BIN, "-y",
-            "-i", input_video,
+            "-i", current,
             "-i", music_path,
             "-filter_complex",
             "[1:a]volume=0.08,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
             "[0:a][music]amix=inputs=2:duration=first[audio]",
             "-map", "0:v", "-map", "[audio]",
             "-c:v", "copy", "-c:a", "aac", "-shortest",
-            output_w_music,
+            temp_music,
         ], check=True, capture_output=True)
-        print(f"Musica anadida: {output_w_music}")
-    else:
-        output_w_music = input_video
+        print(f"Musica anadida: {temp_music}")
+        current = temp_music
 
-    dur_out = subprocess.run([FFMPEG_BIN, "-i", output_w_music], capture_output=True, text=True)
+    print("Post-proceso: upscaling a 1080p...")
+    subprocess.run([
+        FFMPEG_BIN, "-y",
+        "-i", current,
+        "-vf", "scale=1920:1080:flags=lanczos",
+        "-c:v", "libx264",
+        "-preset", "medium",
+        "-crf", "18",
+        "-b:v", "4M",
+        "-c:a", "copy",
+        "-movflags", "+faststart",
+        "-profile:v", "high",
+        "-pix_fmt", "yuv420p",
+        output_1080p,
+    ], check=True, capture_output=True)
+    print(f"Video 1080p: {output_1080p}")
+
+    dur_out = subprocess.run([FFMPEG_BIN, "-i", output_1080p], capture_output=True, text=True)
     dur_line = [l for l in dur_out.stderr.split("\n") if "Duration" in l]
     if dur_line:
         parts = [float(x) for x in dur_line[0].split()[1].strip(",").split(":")]
         mid = (parts[0] * 3600 + parts[1] * 60 + parts[2]) / 2
-        subprocess.run([FFMPEG_BIN, "-y", "-ss", str(mid), "-i", output_w_music, "-vframes", "1", thumb_path], check=True, capture_output=True)
+        subprocess.run([FFMPEG_BIN, "-y", "-ss", str(mid), "-i", output_1080p, "-vframes", "1", thumb_path], check=True, capture_output=True)
         print(f"Thumbnail: {thumb_path}")
 
 
