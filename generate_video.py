@@ -1,18 +1,22 @@
 import asyncio
+import json
 import os
 import re
 import subprocess
+from collections import defaultdict
+
 import edge_tts
+from faster_whisper import WhisperModel
+import imageio_ffmpeg
 from moviepy import (
     AudioFileClip,
+    ColorClip,
+    CompositeVideoClip,
     ImageClip,
     TextClip,
-    CompositeVideoClip,
-    ColorClip,
     concatenate_videoclips,
 )
 
-import imageio_ffmpeg
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
 VOICE = "es-MX-DaliaNeural"
@@ -29,23 +33,23 @@ def parse_scenes(text: str):
     sections = re.split(r'^##SECCION:\s*(\S+)', text, flags=re.MULTILINE)[1:]
     scenes = []
     for i in range(0, len(sections), 2):
-        scene_id = sections[i].strip()
-        scene_text = sections[i + 1].strip()
-        scenes.append({"id": scene_id, "text": scene_text, "chars": len(scene_text)})
+        sid = sections[i].strip()
+        stext = sections[i + 1].strip()
+        scenes.append({"id": sid, "text": stext, "chars": len(stext)})
     return scenes
 
 
 def assign_durations(scenes, total_duration):
-    total_chars = sum(s["chars"] for s in scenes)
+    total_chars = sum(s["chars"] for s in scenes) or 1
     for s in scenes:
         s["duration"] = max(8.0, (s["chars"] / total_chars) * total_duration)
 
 
 def scene_image_path(scene_id):
     for ext in (".jpg", ".png"):
-        path = os.path.join(ASSETS_DIR, f"scene_{scene_id}{ext}")
-        if os.path.exists(path):
-            return path
+        p = os.path.join(ASSETS_DIR, f"scene_{scene_id}{ext}")
+        if os.path.exists(p):
+            return p
     return None
 
 
@@ -116,6 +120,67 @@ async def generate_audio(text_file, output_audio):
     print(f"Audio generado: {output_audio}")
 
 
+def transcribe_audio(audio_path):
+    print("Transcribiendo audio con faster-whisper...")
+    model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    segments, info = model.transcribe(audio_path, language="es", word_timestamps=True)
+    print(f"Idioma: {info.language} (prob: {info.language_probability:.2f})")
+    words = []
+    for seg in segments:
+        for w in seg.words:
+            words.append({"word": w.word.strip(), "start": w.start, "end": w.end})
+
+    chunks = []
+    cur = {"words": [], "text": "", "start": None, "end": None}
+    for w in words:
+        if not w["word"]:
+            continue
+        if cur["start"] is None:
+            cur["start"] = w["start"]
+        cur["words"].append(w["word"])
+        cur["text"] += w["word"]
+        cur["end"] = w["end"]
+        should_break = (
+            len(cur["words"]) >= 10
+            or (w["end"] - cur["start"]) >= 2.8
+            or w["word"].rstrip()[-1:] in (".", "?", "!")
+        )
+        if should_break:
+            chunks.append(dict(cur))
+            cur = {"words": [], "text": "", "start": None, "end": None}
+    if cur["words"]:
+        chunks.append(dict(cur))
+
+    print(f"Subtitulos: {len(chunks)} fragmentos, {len(words)} palabras")
+    return chunks
+
+
+def make_subtitle_clips(subtitle_chunks, width, height):
+    clips = []
+    panel_top = H - 560
+    sub_y = panel_top - 60
+    for ch in subtitle_chunks:
+        text = ch["text"].strip()
+        if not text:
+            continue
+        start, end = ch["start"], ch["end"]
+        dur = end - start
+        if dur <= 0:
+            continue
+        txt = TextClip(
+            font=FONT_BOLD,
+            text=text,
+            font_size=32,
+            color="white",
+            stroke_color="black",
+            stroke_width=2,
+            text_align="center",
+        ).with_position(("center", sub_y)).with_start(start).with_duration(dur)
+        clips.append(txt)
+    print(f"Clips de subtitulos: {len(clips)}")
+    return clips
+
+
 def build_scene_clip(scene):
     dur = scene["duration"]
     sid = scene["id"]
@@ -123,18 +188,16 @@ def build_scene_clip(scene):
     title = SCENE_TITLES.get(sid, sid.upper())
 
     bg = make_background(scene)
-
     title_clip = TextClip(font=FONT_BOLD, text=title, font_size=44, color="white").with_position((80, 50)).with_duration(dur)
-
     panel_clips = make_terminal_panel(commands, dur)
 
     return CompositeVideoClip([bg, title_clip] + panel_clips).with_duration(dur)
 
 
-def compose_video(audio_path, output_video):
+def compose_video(audio_path, subtitle_chunks, output_video):
     audio = AudioFileClip(audio_path)
     total_duration = audio.duration
-    print(f"Duracion total: {total_duration:.2f}s")
+    print(f"Duracion audio: {total_duration:.2f}s")
 
     with open("guion.txt") as f:
         text = f.read()
@@ -143,21 +206,21 @@ def compose_video(audio_path, output_video):
     assign_durations(scenes, total_duration * 0.9)
 
     all_clips = []
-
     for scene in scenes:
-        seg = build_scene_clip(scene)
-        all_clips.append(seg)
+        all_clips.append(build_scene_clip(scene))
 
-    print(f"Total escenas: {len(all_clips)}")
-
+    print(f"Escenas: {len(all_clips)}")
     final = concatenate_videoclips(all_clips, method="chain")
 
     final_dur = final.duration
     audio_dur = min(audio.duration, final_dur)
-    audio_truncated = audio.subclipped(0, audio_dur)
-    final = final.with_audio(audio_truncated)
-    print(f"Duracion final: {final_dur:.2f}s")
+    audio_trunc = audio.subclipped(0, audio_dur)
+    final = final.with_audio(audio_trunc)
 
+    sub_clips = make_subtitle_clips(subtitle_chunks, W, H)
+    final = CompositeVideoClip([final] + sub_clips)
+
+    print(f"Duracion final: {final.duration:.2f}s")
     print("Renderizando video...")
     final.write_videofile(
         output_video,
@@ -177,40 +240,33 @@ def compose_video(audio_path, output_video):
 
 def post_process(input_video):
     music_path = os.path.join(ASSETS_DIR, "musica_fondo.mp3")
-    output_with_music = os.path.join(OUTPUT_DIR, "video_con_musica.mp4")
-    thumbnail_path = os.path.join(OUTPUT_DIR, "thumbnail.png")
+    output_w_music = os.path.join(OUTPUT_DIR, "video_con_musica.mp4")
+    thumb_path = os.path.join(OUTPUT_DIR, "thumbnail.png")
 
     if os.path.exists(music_path):
-        print("Post-proceso: añadiendo música de fondo...")
-        cmd = [
+        print("Post-proceso: anadiendo musica de fondo...")
+        subprocess.run([
             FFMPEG_BIN, "-y",
             "-i", input_video,
             "-i", music_path,
             "-filter_complex",
             "[1:a]volume=0.08,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
             "[0:a][music]amix=inputs=2:duration=first[audio]",
-            "-map", "0:v",
-            "-map", "[audio]",
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-shortest",
-            output_with_music,
-        ]
-        subprocess.run(cmd, check=True, capture_output=True)
-        print(f"Musica añadida: {output_with_music}")
+            "-map", "0:v", "-map", "[audio]",
+            "-c:v", "copy", "-c:a", "aac", "-shortest",
+            output_w_music,
+        ], check=True, capture_output=True)
+        print(f"Musica anadida: {output_w_music}")
     else:
-        output_with_music = input_video
+        output_w_music = input_video
 
-    dur_cmd = [FFMPEG_BIN, "-i", output_with_music]
-    dur_out = subprocess.run(dur_cmd, capture_output=True, text=True)
+    dur_out = subprocess.run([FFMPEG_BIN, "-i", output_w_music], capture_output=True, text=True)
     dur_line = [l for l in dur_out.stderr.split("\n") if "Duration" in l]
     if dur_line:
-        dur_str = dur_line[0].split()[1].strip(",")
-        parts = [float(x) for x in dur_str.split(":")]
+        parts = [float(x) for x in dur_line[0].split()[1].strip(",").split(":")]
         mid = (parts[0] * 3600 + parts[1] * 60 + parts[2]) / 2
-        thumb_cmd = [FFMPEG_BIN, "-y", "-ss", str(mid), "-i", output_with_music, "-vframes", "1", thumbnail_path]
-        subprocess.run(thumb_cmd, check=True, capture_output=True)
-        print(f"Thumbnail: {thumbnail_path}")
+        subprocess.run([FFMPEG_BIN, "-y", "-ss", str(mid), "-i", output_w_music, "-vframes", "1", thumb_path], check=True, capture_output=True)
+        print(f"Thumbnail: {thumb_path}")
 
 
 async def main():
@@ -223,8 +279,10 @@ async def main():
     print("Generando audio con edge-tts...")
     await generate_audio("guion.txt", audio_path)
 
+    subtitle_chunks = transcribe_audio(audio_path)
+
     print("Componiendo video con moviepy...")
-    compose_video(audio_path, video_path)
+    compose_video(audio_path, subtitle_chunks, video_path)
 
     post_process(video_path)
     print("Listo!")
