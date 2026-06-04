@@ -3,3 +3,5 @@ faster-whisper
 moviepy
 imageio-ffmpeg
 google-generativeai
+realesrgan>=0.3.0
+numpy
