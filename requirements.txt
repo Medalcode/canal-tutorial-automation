@@ -4,3 +4,7 @@ moviepy
 imageio-ffmpeg
 google-generativeai
 numpy
+realesrgan>=0.3.0
+fastapi
+uvicorn[standard]
+pydantic

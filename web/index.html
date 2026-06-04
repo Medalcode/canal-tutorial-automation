@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Generator Pro - Panel de Control</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>🎬 VG Pro</h1>
+                <p>Video Generator</p>
+            </div>
+            <nav class="nav">
+                <button class="nav-btn active" data-tab="dashboard">
+                    📊 Dashboard
+                </button>
+                <button class="nav-btn" data-tab="scripts">
+                    📝 Guiones
+                </button>
+                <button class="nav-btn" data-tab="generate">
+                    ✨ Generar Video
+                </button>
+                <button class="nav-btn" data-tab="videos">
+                    🎥 Mis Videos
+                </button>
+                <button class="nav-btn" data-tab="jobs">
+                    ⏳ Trabajos
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <p>v1.0</p>
+                <p>FastAPI + Python</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Header -->
+            <header class="header">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="header-actions">
+                    <button class="btn-icon" title="Actualizar">🔄</button>
+                    <button class="btn-icon" title="Configuración">⚙️</button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard Tab -->
+                <section id="dashboard" class="tab-content active">
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-videos">0</div>
+                            <div class="stat-label">Videos Generados</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-scripts">0</div>
+                            <div class="stat-label">Guiones Creados</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-jobs">0</div>
+                            <div class="stat-label">Trabajos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="storage-used">0 MB</div>
+                            <div class="stat-label">Espacio Usado</div>
+                        </div>
+                    </div>
+
+                    <div class="recent">
+                        <h3>📋 Trabajos Recientes</h3>
+                        <div id="recent-jobs" class="job-list"></div>
+                    </div>
+                </section>
+
+                <!-- Scripts Tab -->
+                <section id="scripts" class="tab-content">
+                    <div class="section-header">
+                        <h3>Mis Guiones</h3>
+                        <button class="btn-primary" onclick="openNewScriptModal()">
+                            + Crear Guión
+                        </button>
+                    </div>
+                    <div id="scripts-list" class="scripts-grid"></div>
+                </section>
+
+                <!-- Generate Video Tab -->
+                <section id="generate" class="tab-content">
+                    <div class="form-container">
+                        <h3>Generar Nuevo Video</h3>
+
+                        <div class="tabs-secondary">
+                            <button class="tab-btn active" onclick="switchGenerateMode('manual')">
+                                📝 Manual
+                            </button>
+                            <button class="tab-btn" onclick="switchGenerateMode('ai')">
+                                🤖 Con IA (Gemini)
+                            </button>
+                        </div>
+
+                        <!-- Manual Mode -->
+                        <div id="manual-mode" class="generate-mode active">
+                            <div class="form-group">
+                                <label>Seleccionar Guión</label>
+                                <select id="script-select">
+                                    <option value="">Cargar un guión...</option>
+                                </select>
+                            </div>
+                            <div class="script-preview" id="script-preview"></div>
+                            <button class="btn-primary btn-large" onclick="generateVideoFromScript()">
+                                🎬 Generar Video
+                            </button>
+                        </div>
+
+                        <!-- AI Mode -->
+                        <div id="ai-mode" class="generate-mode">
+                            <div class="form-group">
+                                <label>Tema del Tutorial</label>
+                                <input type="text" id="topic-input" placeholder="Ej: FastAPI para principiantes">
+                            </div>
+                            <div class="form-group">
+                                <label>Número de Escenas</label>
+                                <input type="number" id="scenes-input" min="3" max="10" value="5">
+                            </div>
+                            <button class="btn-primary btn-large" onclick="generateWithAI()">
+                                🤖 Generar con Gemini IA
+                            </button>
+                            <div id="ai-status" class="status-box" style="display:none;"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Videos Tab -->
+                <section id="videos" class="tab-content">
+                    <div class="section-header">
+                        <h3>Mis Videos Generados</h3>
+                        <button class="btn-icon" onclick="refreshVideosList()">🔄</button>
+                    </div>
+                    <div id="videos-list" class="videos-grid"></div>
+                </section>
+
+                <!-- Jobs Tab -->
+                <section id="jobs" class="tab-content">
+                    <div class="section-header">
+                        <h3>Estado de Trabajos</h3>
+                        <button class="btn-icon" onclick="refreshJobs()">🔄</button>
+                    </div>
+                    <div id="jobs-list" class="jobs-full"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="script-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Guión</h2>
+                <button class="close-btn" onclick="closeScriptModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="scenes-editor"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeScriptModal()">Cancelar</button>
+                <button class="btn-primary" onclick="saveScript()">Guardar Guión</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div id="progress-modal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-body">
+                <h3 id="progress-title">Generando video...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="progress-text">Iniciando...</p>
+                <div class="job-details" id="job-details"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
