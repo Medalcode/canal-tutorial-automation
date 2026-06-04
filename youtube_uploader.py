@@ -73,7 +73,8 @@ def upload_to_youtube(video_file, title, description, tags, category_id="27"):
             "tags": tags if tags else []
         },
         "status": {
-            "privacyStatus": "public"
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": True
         }
     }
 
