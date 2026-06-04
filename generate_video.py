@@ -19,8 +19,6 @@ from moviepy import (
     concatenate_videoclips,
 )
 from moviepy.video.fx import FadeIn, FadeOut
-from basicsr.archs.rrdbnet_arch import RRDBNet
-from realesrgan import RealESRGANer
 
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -92,19 +90,6 @@ async def generate_audio(scenes, output_audio):
     communicate = edge_tts.Communicate(full_text.strip(), VOICE)
     await communicate.save(output_audio)
     print(f"Audio generado: {output_audio}")
-
-    temp_audio = output_audio + ".tmp.mp3"
-    subprocess.run([
-        FFMPEG_BIN, "-y",
-        "-i", output_audio,
-        "-af", "anormalize",
-        "-c:a", "libmp3lame",
-        "-q:a", "2",
-        temp_audio,
-    ], check=True, capture_output=True)
-
-    os.replace(temp_audio, output_audio)
-    print(f"Audio normalizado: {output_audio}")
 
 
 def transcribe_audio(audio_path):
@@ -323,76 +308,6 @@ def compose_video(audio_path, subtitle_chunks, scenes, output_video):
     print(f"Video generado: {output_video}")
 
 
-def upscale_with_realesrgan(input_video, output_video):
-    """Upscala video 720p a 1080p usando Real-ESRGAN"""
-    print("Upscaling con Real-ESRGAN (IA)...")
-    model_name = "RealESRGAN_x2plus"
-    try:
-        upsampler = RealESRGANer(
-            scale=2,
-            model_name=model_name,
-            model_path=None,
-            tile=400,
-            tile_pad=10,
-            pre_pad=0,
-            half=True,
-        )
-        print(f"Real-ESRGAN cargado: {model_name}")
-
-        subprocess.run([
-            FFMPEG_BIN, "-y",
-            "-i", input_video,
-            "-vf", "format=rgb24",
-            "-f", "rawvideo",
-            "-",
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        subprocess.run([
-            FFMPEG_BIN, "-y",
-            "-i", input_video,
-            "-vf", "scale=1920:1080:flags=lanczos",
-            "-c:v", "libx264",
-            "-preset", "slow",
-            "-crf", "16",
-            "-b:v", "5M",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-movflags", "+faststart",
-            output_video,
-        ], check=True, capture_output=True)
-        print(f"Video upscalado: {output_video}")
-    except Exception as e:
-        print(f"Error en Real-ESRGAN, usando método tradicional: {e}")
-        subprocess.run([
-            FFMPEG_BIN, "-y",
-            "-i", input_video,
-            "-vf", "scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease",
-            "-c:v", "libx264",
-            "-preset", "slow",
-            "-crf", "16",
-            "-b:v", "5M",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-movflags", "+faststart",
-            output_video,
-        ], check=True, capture_output=True)
-
-
-def normalize_audio(input_video, output_video):
-    """Normaliza y comprime audio para mejor calidad"""
-    print("Post-proceso: normalizando audio...")
-    subprocess.run([
-        FFMPEG_BIN, "-y",
-        "-i", input_video,
-        "-af", "anrmean,anlmdn=om=s,alimiter=limit=1:release=5",
-        "-c:v", "copy",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        output_video,
-    ], check=True, capture_output=True)
-    print(f"Audio normalizado: {output_video}")
-
-
 def post_process(input_video):
     music_path = os.path.join(ASSETS_DIR, "musica_fondo.mp3")
     temp_music = os.path.join(OUTPUT_DIR, "video_temp_music.mp4")
@@ -409,13 +324,12 @@ def post_process(input_video):
             "-i", music_path,
             "-filter_complex",
             "[1:a]volume=0.06,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
-            "[0:a]anrmean,alimiter=limit=1[voice];"
-            "[voice][music]amix=inputs=2:duration=first,anlmdn=om=s,alimiter=limit=0.99[audio]",
+            "[0:a][music]amix=inputs=2:duration=first[audio]",
             "-map", "0:v", "-map", "[audio]",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
             temp_music,
         ], check=True, capture_output=True)
-        print(f"Musica anadida con audio mejorado: {temp_music}")
+        print(f"Musica anadida: {temp_music}")
         current = temp_music
 
     print("Post-proceso: upscaling a 1080p con mejor calidad...")

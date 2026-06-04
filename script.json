@@ -1,32 +1,92 @@
 {
-  "topic": "Python básico en 1 minuto",
+  "topic": "FastAPI - Crear una API REST en 10 minutos",
   "scenes": [
     {
       "id": "intro",
-      "title": "Intro a Python",
-      "narration": "Hola. Hoy veremos cómo empezar con Python en un minuto. Es súper fácil y rápido.",
+      "title": "Introducción a FastAPI",
+      "narration": "Hola, bienvenido a este tutorial. Hoy aprenderemos a crear una API REST profesional usando FastAPI. FastAPI es un framework moderno y ultra rápido para construir APIs en Python. En solo 10 minutos, tendremos una API completamente funcional con documentación automática.",
       "commands": [
-        "python --version",
-        "echo 'Hola Mundo'"
+        "# FastAPI - API REST en 10 minutos",
+        "# Tutorial completo de FastAPI"
       ]
     },
     {
-      "id": "codigo",
-      "title": "Escribiendo Código",
-      "narration": "Abrimos un archivo, creamos una función simple que imprime un mensaje y la llamamos.",
+      "id": "instalacion",
+      "title": "Instalación y Setup",
+      "narration": "Primero, necesitamos instalar FastAPI y Uvicorn. Abre tu terminal y ejecuta estos comandos. Uvicorn es el servidor ASGI que ejecutará nuestra aplicación. También instalaremos httpx para las pruebas.",
       "commands": [
-        "def saludar():",
-        "    print('Hola desde Python!')",
-        "saludar()"
+        "pip install fastapi uvicorn",
+        "mkdir api_tutorial",
+        "cd api_tutorial",
+        "python -m venv venv"
       ]
     },
     {
-      "id": "cierre",
-      "title": "Hasta la Próxima",
-      "narration": "Así de fácil es usar Python. Suscríbete para más videos cortos como este.",
+      "id": "crear_app",
+      "title": "Crear la Aplicación",
+      "narration": "Ahora crearemos nuestro primer archivo main.py. Importamos FastAPI y creamos una instancia de la aplicación. Esto es lo básico que necesitamos para empezar.",
       "commands": [
-        "# Fin del tutorial",
-        "# Dale like y suscríbete"
+        "# main.py",
+        "from fastapi import FastAPI",
+        "app = FastAPI()",
+        "@app.get('/')",
+        "def read_root():",
+        "    return {'mensaje': 'Hola FastAPI'}"
+      ]
+    },
+    {
+      "id": "ejecutar_servidor",
+      "title": "Ejecutar el Servidor",
+      "narration": "Con solo este código, podemos ejecutar nuestro servidor. Usa Uvicorn para levantar la aplicación en el puerto 8000. Verás que FastAPI genera automáticamente documentación interactiva.",
+      "commands": [
+        "uvicorn main:app --reload",
+        "# Accede a: http://localhost:8000",
+        "# Documentación: http://localhost:8000/docs"
+      ]
+    },
+    {
+      "id": "crear_endpoint",
+      "title": "Crear un Endpoint Avanzado",
+      "narration": "Ahora agregaremos un endpoint más complejo que recibe parámetros. FastAPI valida automáticamente los datos y genera la documentación.",
+      "commands": [
+        "@app.post('/usuarios')",
+        "def crear_usuario(nombre: str, edad: int):",
+        "    return {",
+        "        'nombre': nombre,",
+        "        'edad': edad,",
+        "        'status': 'creado'",
+        "    }"
+      ]
+    },
+    {
+      "id": "testing",
+      "title": "Probar los Endpoints",
+      "narration": "Ahora probemos nuestros endpoints con curl. Como ves, FastAPI valida automáticamente los tipos de datos y proporciona errores claros si algo está mal.",
+      "commands": [
+        "curl http://localhost:8000/",
+        "curl -X POST http://localhost:8000/usuarios",
+        "# -d '{nombre: Juan, edad: 30}'"
+      ]
+    },
+    {
+      "id": "documentacion",
+      "title": "Documentación Automática",
+      "narration": "El punto fuerte de FastAPI es que genera documentación interactiva automáticamente. Abre tu navegador en localhost:8000/docs y verás Swagger UI. Desde ahí puedes probar todos tus endpoints directamente.",
+      "commands": [
+        "# Abre en navegador:",
+        "# http://localhost:8000/docs",
+        "# También disponible en:",
+        "# http://localhost:8000/redoc"
+      ]
+    },
+    {
+      "id": "conclusion",
+      "title": "Conclusión",
+      "narration": "Felicidades, ya tienes una API REST profesional en menos de 10 minutos. FastAPI combina velocidad, facilidad de uso y documentación automática. Es perfecto para APIs de cualquier tamaño. Suscribete para más tutoriales sobre Python y desarrollo backend.",
+      "commands": [
+        "# Gracias por ver",
+        "# FastAPI es increíble",
+        "# Crea APIs profesionales"
       ]
     }
   ]
