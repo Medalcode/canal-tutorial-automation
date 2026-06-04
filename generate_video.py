@@ -31,15 +31,14 @@ W, H = 1280, 720
 BG_COLOR = (20, 22, 28)
 
 
-def parse_scenes(text: str):
-    sections = re.split(r'^##SECCION:\s*(\S+)', text, flags=re.MULTILINE)[1:]
-    scenes = []
-    for i in range(0, len(sections), 2):
-        sid = sections[i].strip()
-        stext = sections[i + 1].strip()
-        scenes.append({"id": sid, "text": stext, "chars": len(stext)})
+def load_script(json_path: str):
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    scenes = data.get("scenes", [])
+    for s in scenes:
+        s["text"] = s.get("narration", "")
+        s["chars"] = len(s["text"])
     return scenes
-
 
 def assign_durations(scenes, total_duration):
     total_chars = sum(s["chars"] for s in scenes) or 1
@@ -83,41 +82,11 @@ def make_terminal_panel(commands, duration):
     return clips
 
 
-SCENE_COMMANDS = {
-    "intro": ["# Android como Servidor", "# Termux + Python + FastAPI"],
-    "instalacion": ["pkg update && pkg upgrade", "pkg install python openssh"],
-    "configuracion": ["pkg install python openssh", "python --version"],
-    "ssh": ["whoami", "passwd", "ifconfig", "ssh usuario@192.168.1.x"],
-    "codigo": [
-        "from fastapi import FastAPI",
-        'app = FastAPI()',
-        '@app.get("/")',
-        'def home():',
-        '    return {"msg": "Hola desde Android!"}',
-    ],
-    "ejecucion": [
-        "uvicorn server:app --host 0.0.0.0 --port 8000",
-        "http://192.168.1.x:8000",
-    ],
-    "cierre": ["# Gracias por ver!", "# Dale like y suscríbete"],
-}
+# SCENE_COMMANDS and SCENE_TITLES removed as they are now loaded from JSON
 
-SCENE_TITLES = {
-    "intro": "Android como Servidor",
-    "instalacion": "Paso 1: Instalar Termux",
-    "configuracion": "Paso 2: Python + OpenSSH",
-    "ssh": "Paso 3: Configurar SSH",
-    "codigo": "Paso 4: Escribir el Backend",
-    "ejecucion": "Paso 5: Ejecutar y Probar",
-    "cierre": "Proximos Pasos",
-}
-
-
-async def generate_audio(text_file, output_audio):
-    with open(text_file) as f:
-        raw = f.read()
-    clean = re.sub(r'^##SECCION:.*\n?', '', raw, flags=re.MULTILINE)
-    communicate = edge_tts.Communicate(clean.strip(), VOICE)
+async def generate_audio(scenes, output_audio):
+    full_text = " ".join([s.get("narration", "") for s in scenes])
+    communicate = edge_tts.Communicate(full_text.strip(), VOICE)
     await communicate.save(output_audio)
     print(f"Audio generado: {output_audio}")
 
@@ -186,8 +155,8 @@ def make_subtitle_clips(subtitle_chunks, width, height):
 def build_scene_clip(scene):
     dur = scene["duration"]
     sid = scene["id"]
-    commands = SCENE_COMMANDS.get(sid, ["# ..."])
-    title = SCENE_TITLES.get(sid, sid.upper())
+    commands = scene.get("commands", ["# ..."])
+    title = scene.get("title", sid.upper())
 
     bg = make_background(scene)
     title_clip = TextClip(font=FONT_BOLD, text=title, font_size=44, color="white").with_position((80, 50)).with_duration(dur)
@@ -280,15 +249,11 @@ def make_outro(duration=8):
     return CompositeVideoClip(clips).with_duration(duration)
 
 
-def compose_video(audio_path, subtitle_chunks, output_video):
+def compose_video(audio_path, subtitle_chunks, scenes, output_video):
     audio = AudioFileClip(audio_path)
     total_duration = audio.duration
     print(f"Duracion audio: {total_duration:.2f}s")
 
-    with open("guion.txt") as f:
-        text = f.read()
-
-    scenes = parse_scenes(text)
     assign_durations(scenes, total_duration * 0.9)
 
     all_clips = []
@@ -393,16 +358,23 @@ async def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(ASSETS_DIR, exist_ok=True)
 
+    script_path = "script.json"
+    if not os.path.exists(script_path):
+        print(f"ERROR: No se encontró {script_path}. Ejecuta generate_script.py primero.")
+        return
+
+    scenes = load_script(script_path)
+
     audio_path = os.path.join(OUTPUT_DIR, "narracion.mp3")
     video_path = os.path.join(OUTPUT_DIR, "video_final.mp4")
 
     print("Generando audio con edge-tts...")
-    await generate_audio("guion.txt", audio_path)
+    await generate_audio(scenes, audio_path)
 
     subtitle_chunks = transcribe_audio(audio_path)
 
     print("Componiendo video con moviepy...")
-    compose_video(audio_path, subtitle_chunks, video_path)
+    compose_video(audio_path, subtitle_chunks, scenes, video_path)
 
     post_process(video_path)
     print("Listo!")

@@ -30,21 +30,16 @@ pip install edge-tts moviepy faster-whisper imageio-ffmpeg
 
 ## Uso
 
-### 1. Escribir el guion
+### 1. Generar el guion con IA
 
-Edita `guion.txt` con el contenido del video. Usa `##SECCION: nombre` para dividir en escenas:
+El repositorio incluye un script para generar el guion y los comandos automáticamente usando la API de Gemini.
 
-```
-##SECCION: intro
-Texto de la introducción...
-
-##SECCION: paso1
-Texto del primer paso...
+```bash
+export GEMINI_API_KEY="tu_api_key"
+python generate_script.py --topic "Docker para principiantes"
 ```
 
-### 2. Configurar comandos por escena (opcional)
-
-Edita `SCENE_COMMANDS` en `generate_video.py` para mostrar comandos en el panel terminal de cada escena.
+Esto generará un archivo `script.json` estructurado por escenas con narración, comandos y títulos. Alternativamente, puedes editar el `script.json` manualmente.
 
 ### 3. Generar el video
 
@@ -74,7 +69,8 @@ Todos los archivos se guardan en `output/`:
 
 ```
 canal/
-├── guion.txt              # Guion del video (editable)
+├── script.json            # Guion estructurado generado por IA o manual
+├── generate_script.py     # Generador de guiones usando Gemini API
 ├── generate_video.py      # Script principal del pipeline
 ├── assets/
 │   ├── fondo.jpg          # Imagen de fondo por defecto
@@ -103,7 +99,7 @@ canal/
 - [x] Upscale 1080p
 - [ ] pycoding: tutoriales con ejecución de código real
 - [ ] Avatar/cara sobreimpreso
-- [ ] Generación de guion con IA
+- [x] Generación de guion con IA
 - [ ] Batch processing
 - [ ] Subida automática a YouTube
 

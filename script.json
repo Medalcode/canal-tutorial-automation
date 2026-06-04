@@ -1,0 +1,33 @@
+{
+  "topic": "Python básico en 1 minuto",
+  "scenes": [
+    {
+      "id": "intro",
+      "title": "Intro a Python",
+      "narration": "Hola. Hoy veremos cómo empezar con Python en un minuto. Es súper fácil y rápido.",
+      "commands": [
+        "python --version",
+        "echo 'Hola Mundo'"
+      ]
+    },
+    {
+      "id": "codigo",
+      "title": "Escribiendo Código",
+      "narration": "Abrimos un archivo, creamos una función simple que imprime un mensaje y la llamamos.",
+      "commands": [
+        "def saludar():",
+        "    print('Hola desde Python!')",
+        "saludar()"
+      ]
+    },
+    {
+      "id": "cierre",
+      "title": "Hasta la Próxima",
+      "narration": "Así de fácil es usar Python. Suscríbete para más videos cortos como este.",
+      "commands": [
+        "# Fin del tutorial",
+        "# Dale like y suscríbete"
+      ]
+    }
+  ]
+}
