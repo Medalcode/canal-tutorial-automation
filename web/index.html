@@ -91,45 +91,37 @@
                 <!-- Generate Video Tab -->
                 <section id="generate" class="tab-content">
                     <div class="form-container">
-                        <h3>Generar Nuevo Video</h3>
+                        <h3>Crear Nuevo Video</h3>
 
-                        <div class="tabs-secondary">
-                            <button class="tab-btn active" onclick="switchGenerateMode('manual')">
-                                📝 Manual
+                        <div id="ideas-phase">
+                            <div class="form-group">
+                                <label>Dime tus ideas para el video...</label>
+                                <textarea id="topic-input" rows="6" placeholder="Ej: Quiero un tutorial de Docker para principiantes. Empezar explicando qué son los contenedores, luego mostrar cómo instalar Docker y finalmente ejecutar un 'hello world'." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-color); color: var(--text-color); font-family: inherit; font-size: 1rem; resize: vertical;"></textarea>
+                            </div>
+                            <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                                <label style="margin: 0;">Número de Escenas Aproximadas:</label>
+                                <input type="number" id="scenes-input" min="3" max="10" value="5" style="width: 80px;">
+                            </div>
+                            <button class="btn-primary btn-large" onclick="generateWithAI()" style="width: 100%; margin-top: 15px;">
+                                ✨ 1. Que la IA haga el Guion
                             </button>
-                            <button class="tab-btn" onclick="switchGenerateMode('ai')">
-                                🤖 Con IA (Gemini)
-                            </button>
+                            <div id="ai-status" class="status-box" style="display:none; margin-top: 15px;"></div>
                         </div>
 
-                        <!-- Manual Mode -->
-                        <div id="manual-mode" class="generate-mode active">
-                            <div class="form-group">
-                                <label>Seleccionar Guión</label>
-                                <select id="script-select">
-                                    <option value="">Cargar un guión...</option>
-                                </select>
+                        <div id="script-phase" style="display:none; margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                            <h3>Guion Generado</h3>
+                            <p style="color: var(--text-muted); margin-bottom: 15px;">Revisa el guion generado. Si todo está correcto, elige dónde quieres guardarlo:</p>
+                            <div class="script-preview" id="script-preview-ai" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; background: var(--bg-color); border-radius: 8px; padding: 15px; text-align: left;"></div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <button class="btn-primary btn-large" onclick="startVideoAndDownload()" style="background-color: var(--primary-color);">
+                                    💾 2. Crear Video y Descargar
+                                </button>
+                                <button class="btn-secondary btn-large" onclick="startVideoAndYoutube()" style="background-color: #ff0000; color: white; border: none;">
+                                    🔴 2. Crear Video y Subir a YouTube
+                                </button>
                             </div>
-                            <div class="script-preview" id="script-preview"></div>
-                            <button class="btn-primary btn-large" onclick="generateVideoFromScript()">
-                                🎬 Generar Video
-                            </button>
-                        </div>
-
-                        <!-- AI Mode -->
-                        <div id="ai-mode" class="generate-mode">
-                            <div class="form-group">
-                                <label>Tema del Tutorial</label>
-                                <input type="text" id="topic-input" placeholder="Ej: FastAPI para principiantes">
-                            </div>
-                            <div class="form-group">
-                                <label>Número de Escenas</label>
-                                <input type="number" id="scenes-input" min="3" max="10" value="5">
-                            </div>
-                            <button class="btn-primary btn-large" onclick="generateWithAI()">
-                                🤖 Generar con Gemini IA
-                            </button>
-                            <div id="ai-status" class="status-box" style="display:none;"></div>
+                            <input type="hidden" id="current-script-id">
                         </div>
                     </div>
                 </section>

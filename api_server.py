@@ -110,7 +110,8 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
 
         prompt = f"""
         Eres un experto creador de tutoriales técnicos para YouTube.
-        Crea un guion estructurado para: "{request.topic}"
+        Crea un guion estructurado basándote en las siguientes ideas dadas por el usuario:
+        "{request.topic}"
 
         Requisitos:
         - Mínimo {request.num_scenes} secciones

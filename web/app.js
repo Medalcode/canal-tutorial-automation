@@ -206,13 +206,14 @@ async function generateWithAI() {
     const numScenes = parseInt(document.getElementById('scenes-input').value);
 
     if (!topic) {
-        showStatus('Por favor ingresa un tema', 'error');
+        showStatus('Por favor cuéntame tus ideas', 'error');
         return;
     }
 
     const statusBox = document.getElementById('ai-status');
     statusBox.style.display = 'block';
-    statusBox.textContent = '🔄 Generando guión con Gemini IA...';
+    statusBox.textContent = '🔄 Generando guion con Gemini IA...';
+    document.getElementById('script-phase').style.display = 'none';
 
     try {
         const result = await API.post('/scripts/generate', {
@@ -220,18 +221,44 @@ async function generateWithAI() {
             num_scenes: numScenes
         });
 
-        statusBox.innerHTML = `
-            ✅ <strong>Guión generado:</strong><br>
-            ${result.num_scenes} escenas<br>
-            <button class="btn-primary" style="margin-top:10px;width:100%;" onclick="generateVideoFromScript('${result.script_id}')">
-                ▶️ Generar Video
-            </button>
-        `;
+        statusBox.style.display = 'none';
+        document.getElementById('current-script-id').value = result.script_id;
+
+        // Cargar script completo para previsualizarlo
+        const script = await API.get(`/scripts/${result.script_id}`);
+        const scenesHtml = script.scenes.map(s => `
+            <div style="margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <strong style="color: var(--primary-color)">${s.title}</strong><br>
+                <i style="color: var(--text-secondary)">Narración:</i> ${s.narration}<br>
+                <code style="display: block; margin-top: 5px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 4px;">${s.commands.join('<br>')}</code>
+            </div>
+        `).join('');
+
+        document.getElementById('script-preview-ai').innerHTML = scenesHtml;
+        document.getElementById('script-phase').style.display = 'block';
 
         loadScripts();
     } catch (err) {
         statusBox.innerHTML = `❌ Error: ${err.message}`;
     }
+}
+
+async function startVideoAndDownload() {
+    const scriptId = document.getElementById('current-script-id').value;
+    if (!scriptId) return;
+
+    try {
+        const result = await API.post(`/videos/generate?script_id=${scriptId}`, {});
+        currentJob = result.job_id;
+        showProgressModal();
+        monitorJobProgress('download');
+    } catch (err) {
+        showStatus(`Error: ${err.message}`, 'error');
+    }
+}
+
+async function startVideoAndYoutube() {
+    alert("⏳ Próximamente: Para subir directamente a YouTube necesitas crear credenciales OAuth en Google Cloud. Por ahora usa 'Crear Video y Descargar a mi PC'.");
 }
 
 async function generateVideoFromScript(scriptId = null) {
@@ -265,7 +292,7 @@ function closeProgressModal() {
     if (autoRefreshInterval) clearInterval(autoRefreshInterval);
 }
 
-async function monitorJobProgress() {
+async function monitorJobProgress(action = null) {
     autoRefreshInterval = setInterval(async () => {
         try {
             const job = await API.get(`/jobs/${currentJob}`);
@@ -291,6 +318,19 @@ async function monitorJobProgress() {
                     closeProgressModal();
                     loadDashboard();
                     refreshVideosList();
+
+                    if (action === 'download' && job.output_files) {
+                        const videoFile = job.output_files.find(f => f.name.endsWith('.mp4'));
+                        if (videoFile) {
+                            const a = document.createElement('a');
+                            a.href = videoFile.url;
+                            a.download = videoFile.name;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            showStatus('📥 Descarga iniciada automáticamente.', 'success');
+                        }
+                    }
                 }, 2000);
             } else if (job.status === 'failed') {
                 document.getElementById('progress-title').textContent = '❌ Error en la Generación';
