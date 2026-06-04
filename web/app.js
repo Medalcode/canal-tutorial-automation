@@ -235,6 +235,12 @@ async function generateWithAI() {
         `).join('');
 
         document.getElementById('script-preview-ai').innerHTML = scenesHtml;
+        
+        // Rellenar campos de YouTube
+        document.getElementById('yt-title').value = script.youtube_title || '';
+        document.getElementById('yt-desc').value = script.youtube_description || '';
+        document.getElementById('yt-tags').value = JSON.stringify(script.youtube_tags || []);
+
         document.getElementById('script-phase').style.display = 'block';
 
         loadScripts();
@@ -258,7 +264,26 @@ async function startVideoAndDownload() {
 }
 
 async function startVideoAndYoutube() {
-    alert("⏳ Próximamente: Para subir directamente a YouTube necesitas crear credenciales OAuth en Google Cloud. Por ahora usa 'Crear Video y Descargar a mi PC'.");
+    const scriptId = document.getElementById('current-script-id').value;
+    if (!scriptId) return;
+    
+    const ytTitle = document.getElementById('yt-title').value;
+    const ytDesc = document.getElementById('yt-desc').value;
+    const ytTags = JSON.parse(document.getElementById('yt-tags').value || '[]');
+
+    try {
+        const result = await API.post(`/videos/generate?script_id=${scriptId}`, {
+            upload_to_youtube: true,
+            youtube_title: ytTitle,
+            youtube_description: ytDesc,
+            youtube_tags: ytTags
+        });
+        currentJob = result.job_id;
+        showProgressModal();
+        monitorJobProgress('youtube');
+    } catch (err) {
+        showStatus(`Error: ${err.message}`, 'error');
+    }
 }
 
 async function generateVideoFromScript(scriptId = null) {

@@ -308,6 +308,21 @@ def compose_video(audio_path, subtitle_chunks, scenes, output_video):
     print(f"Video generado: {output_video}")
 
 
+def download_fallback_music(music_path):
+    """Descarga música de fondo libre de derechos si no existe el archivo local."""
+    import urllib.request
+    url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sunshine.mp3"
+    try:
+        print("Descargando musica de fondo libre de derechos...")
+        os.makedirs(os.path.dirname(music_path), exist_ok=True)
+        urllib.request.urlretrieve(url, music_path)
+        print(f"Musica descargada: {music_path}")
+        return True
+    except Exception as e:
+        print(f"No se pudo descargar musica: {e}. Se continuara sin musica.")
+        return False
+
+
 def post_process(input_video):
     music_path = os.path.join(ASSETS_DIR, "musica_fondo.mp3")
     temp_music = os.path.join(OUTPUT_DIR, "video_temp_music.mp4")
@@ -316,21 +331,30 @@ def post_process(input_video):
 
     current = input_video
 
+    # Si no existe la musica, intentar descargarla automaticamente
+    if not os.path.exists(music_path):
+        download_fallback_music(music_path)
+
     if os.path.exists(music_path):
         print("Post-proceso: anadiendo musica de fondo...")
-        subprocess.run([
-            FFMPEG_BIN, "-y",
-            "-i", current,
-            "-i", music_path,
-            "-filter_complex",
-            "[1:a]volume=0.06,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
-            "[0:a][music]amix=inputs=2:duration=first[audio]",
-            "-map", "0:v", "-map", "[audio]",
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
-            temp_music,
-        ], check=True, capture_output=True)
-        print(f"Musica anadida: {temp_music}")
-        current = temp_music
+        try:
+            subprocess.run([
+                FFMPEG_BIN, "-y",
+                "-i", current,
+                "-i", music_path,
+                "-filter_complex",
+                "[1:a]volume=0.06,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
+                "[0:a][music]amix=inputs=2:duration=first[audio]",
+                "-map", "0:v", "-map", "[audio]",
+                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
+                temp_music,
+            ], check=True, capture_output=True)
+            print(f"Musica anadida: {temp_music}")
+            current = temp_music
+        except subprocess.CalledProcessError as e:
+            print(f"Error al mezclar musica, se continua sin ella: {e}")
+            if os.path.exists(music_path):
+                os.remove(music_path)
 
     print("Post-proceso: upscaling a 1080p con mejor calidad...")
     subprocess.run([

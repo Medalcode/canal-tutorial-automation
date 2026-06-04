@@ -4,7 +4,9 @@ moviepy
 imageio-ffmpeg
 google-generativeai
 numpy
-realesrgan>=0.3.0
 fastapi
 uvicorn[standard]
 pydantic
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib

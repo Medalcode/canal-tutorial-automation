@@ -3,3 +3,10 @@ output/
 __pycache__/
 *.pyc
 .DS_Store
+.vercel
+client_secret.json
+youtube_token.pkl
+test_gemini.py
+scripts/
+.jobs/
+*.env

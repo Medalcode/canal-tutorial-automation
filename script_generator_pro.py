@@ -70,7 +70,7 @@ def generate_with_gemini(topic: str, num_scenes: int = 5) -> Dict:
         sys.exit(1)
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     prompt = f"""
     Eres un experto creador de tutoriales técnicos para YouTube.
@@ -85,6 +85,9 @@ def generate_with_gemini(topic: str, num_scenes: int = 5) -> Dict:
     Responde SOLO con JSON válido (sin ```json):
     {{
       "topic": "{topic}",
+      "youtube_title": "Título llamativo para YouTube...",
+      "youtube_description": "Descripción optimizada para SEO...",
+      "youtube_tags": ["tag1", "tag2", "tag3"],
       "scenes": [
         {{
           "id": "intro",

@@ -48,6 +48,12 @@ class GenerateScriptRequest(BaseModel):
     topic: str
     num_scenes: int = 5
 
+class GenerateVideoRequest(BaseModel):
+    upload_to_youtube: bool = False
+    youtube_title: Optional[str] = None
+    youtube_description: Optional[str] = None
+    youtube_tags: Optional[List[str]] = None
+
 
 class VideoJob(BaseModel):
     job_id: str
@@ -106,7 +112,7 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
 
         prompt = f"""
         Eres un experto creador de tutoriales técnicos para YouTube.
@@ -122,6 +128,9 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
         Responde SOLO con JSON válido (sin ```json):
         {{
           "topic": "{request.topic}",
+          "youtube_title": "Título llamativo para YouTube...",
+          "youtube_description": "Descripción optimizada para SEO...",
+          "youtube_tags": ["tag1", "tag2", "tag3"],
           "scenes": [
             {{"id": "intro", "title": "Introducción", "narration": "...", "commands": ["..."]}}
           ]
@@ -197,9 +206,13 @@ def list_scripts():
 @app.post("/api/videos/generate")
 async def generate_video(
     script_id: str,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    request: GenerateVideoRequest = None
 ):
     """Generar video a partir de guión"""
+    if request is None:
+        request = GenerateVideoRequest()
+
     script_file = SCRIPTS_DIR / f"{script_id}.json"
     if not script_file.exists():
         raise HTTPException(status_code=404, detail="Script no encontrado")
@@ -220,7 +233,11 @@ async def generate_video(
     background_tasks.add_task(
         generate_video_background,
         job_id,
-        str(script_file)
+        str(script_file),
+        request.upload_to_youtube,
+        request.youtube_title,
+        request.youtube_description,
+        request.youtube_tags
     )
 
     return {
@@ -230,7 +247,14 @@ async def generate_video(
     }
 
 
-async def generate_video_background(job_id: str, script_file: str):
+async def generate_video_background(
+    job_id: str, 
+    script_file: str, 
+    upload_to_youtube: bool = False,
+    youtube_title: str = None,
+    youtube_description: str = None,
+    youtube_tags: List[str] = None
+):
     """Generar video en background"""
     try:
         # Copiar script a script.json para que generate_video.py lo use
@@ -268,10 +292,34 @@ async def generate_video_background(job_id: str, script_file: str):
                     })
 
             job["output_files"] = output_files
+
+            if upload_to_youtube:
+                job["message"] = "Video generado. Subiendo a YouTube..."
+                save_job(job_id, job)
+                try:
+                    import youtube_uploader
+                    video_file_path = str(OUTPUT_DIR / "video_con_musica.mp4")
+                    # Llama al script de subida
+                    video_url = youtube_uploader.upload_to_youtube(
+                        video_file_path, 
+                        youtube_title or "Nuevo Tutorial", 
+                        youtube_description or "Tutorial generado automáticamente.", 
+                        youtube_tags or []
+                    )
+                    job["message"] = f"¡Subido a YouTube exitosamente! URL: {video_url}"
+                except Exception as e:
+                    job["status"] = "failed"
+                    job["message"] = f"Video creado, pero falló la subida a YouTube: {str(e)}"
+                    save_job(job_id, job)
+                    return
+
         else:
             job["status"] = "failed"
             job["progress"] = 0
-            job["message"] = f"Error: {stderr.decode()}"
+            # Limitar el mensaje de error a las últimas 3 líneas del stderr para no mostrar todo el log de ffmpeg
+            stderr_text = stderr.decode(errors='ignore')
+            last_lines = [l for l in stderr_text.strip().splitlines() if l.strip()][-3:]
+            job["message"] = f"Error en la generación: {'|'.join(last_lines)}"
 
     except Exception as e:
         job["status"] = "failed"
@@ -358,4 +406,4 @@ if __name__ == "__main__":
     print("🚀 Iniciando Video Generator Pro...")
     print("📊 API disponible en: http://localhost:8000/api")
     print("🌐 Frontend en: http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api_server:app", host="0.0.0.0", port=8000, reload=True)

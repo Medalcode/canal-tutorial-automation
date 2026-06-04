@@ -1,0 +1,205 @@
+{
+  "topic": "Implementación de RAG (Retrieval-Augmented Generation) 100% offline para PYMES.",
+  "youtube_title": "RAG Offline para PYMES: ¡Tu IA sin Internet! (LangChain + ChromaDB + Ollama) 🚀",
+  "youtube_description": "Desbloquea el poder de la Inteligencia Artificial en tu PYME con este tutorial completo sobre RAG (Retrieval-Augmented Generation) 100% offline. Aprende a construir tu propio asistente de IA que funciona sin conexión a internet, garantizando la máxima privacidad y seguridad de tus datos. Utilizaremos herramientas potentes como LangChain, ChromaDB y LLMs locales (con Ollama) para transformar tus documentos internos en una base de conocimiento inteligente. Ideal para preguntas frecuentes, políticas internas, soporte al cliente y más, ¡sin costos de nube ni dependencias externas! #RAG #IAOffline #PYMES #LangChain #ChromaDB #Ollama #InteligenciaArtificial #PrivacidadDeDatos #TutorialIA #Python",
+  "youtube_tags": [
+    "RAG offline",
+    "RAG para PYMES",
+    "IA sin internet",
+    "Inteligencia Artificial offline",
+    "LangChain tutorial",
+    "ChromaDB",
+    "Ollama",
+    "LLM local",
+    "Generación Aumentada por Recuperación",
+    "Privacidad de datos IA",
+    "Seguridad de IA",
+    "IA para empresas",
+    "Tutorial RAG",
+    "Python IA",
+    "Negocios IA",
+    "DIY RAG",
+    "Automatización PYME",
+    "Transformación Digital",
+    "Modelos de lenguaje locales"
+  ],
+  "scenes": [
+    {
+      "id": "intro",
+      "title": "0. Introducción: ¿IA sin Internet para tu PYME?",
+      "narration": "¡Hola a todos y bienvenidos al canal! Hoy vamos a desvelar una de las soluciones de Inteligencia Artificial más potentes y relevantes para Pequeñas y Medianas Empresas: la implementación de RAG, o Generación Aumentada por Recuperación, 100% offline. Si te preocupa la privacidad de tus datos, los costos de la nube, o simplemente quieres una IA robusta que funcione sin depender de internet, este es tu tutorial. Te guiaré paso a paso para construir tu propio sistema de IA conversacional que puede responder preguntas basándose en tus propios documentos. ¡Vamos a ello!",
+      "commands": []
+    },
+    {
+      "id": "que_es_rag_offline",
+      "title": "1. ¿Qué es RAG y por qué Offline es Clave para PYMES?",
+      "narration": "Primero, aclaremos: ¿Qué es RAG? Imagina que tienes un mar de documentos y necesitas respuestas precisas. RAG funciona en dos fases: primero, 'recupera' la información más relevante de tu base de datos y, segundo, la utiliza para 'aumentar' la capacidad de un modelo de lenguaje para generar una respuesta. Es como darle al modelo un libro abierto para que no 'alucine'. ¿Y por qué offline? Para una PYME, esto significa control total sobre tus datos, cero exposición en la nube, seguridad mejorada, independencia de la conexión a internet y, lo más importante, ¡costos predecibles y a menudo más bajos! Piensa en gestionar FAQs internas, políticas de RRHH, manuales técnicos o soporte al cliente con tus propios datos.",
+      "commands": []
+    },
+    {
+      "id": "componentes_clave",
+      "title": "2. Los Componentes Clave de Nuestro Sistema RAG Offline",
+      "narration": "Para construir nuestro sistema RAG offline, necesitaremos varios ingredientes. Primero, tus propios documentos (PDFs, textos). Luego, un 'Modelo de Embeddings' que transforme el texto en vectores numéricos, que también correrá localmente. Necesitaremos una 'Base de Datos Vectorial' para almacenar esos vectores de forma eficiente; usaremos ChromaDB, que es ligera y funciona genial offline. Y, por supuesto, un 'Modelo de Lenguaje Grande' (LLM) que también correrá localmente; para esto, Ollama es una opción excelente y fácil de usar. Finalmente, orquestaremos todo con 'LangChain', un framework de Python que simplifica la conexión de todos estos componentes.",
+      "commands": []
+    },
+    {
+      "id": "preparando_entorno",
+      "title": "3. Preparando el Entorno: Python y Librerías Esenciales",
+      "narration": "Lo primero es tener Python instalado y crear un entorno virtual para mantener nuestras dependencias ordenadas. Luego, instalaremos las librerías principales: LangChain para la orquestación, ChromaDB como base de datos vectorial, transformers y sentence-transformers para los embeddings, y pypdf para cargar documentos. También, un paso muy importante es instalar Ollama y descargar un modelo localmente como Llama2.",
+      "commands": [
+        "python -m venv rag_offline_env",
+        "source rag_offline_env/bin/activate # Para macOS/Linux",
+        "# rag_offline_env\\Scripts\\activate # Para Windows",
+        "pip install langchain langchain-community chromadb transformers sentence-transformers pypdf",
+        "",
+        "# Instala Ollama desde su web: https://ollama.com/",
+        "# Una vez instalado, desde tu terminal:",
+        "ollama run llama2"
+      ]
+    },
+    {
+      "id": "cargando_procesando_datos",
+      "title": "4. Cargando y Procesando tus Documentos (El Cerebro de la IA)",
+      "narration": "Ahora, vamos a alimentar a nuestra IA. Necesitamos cargar tus documentos, que pueden ser PDFs o archivos de texto. Usaremos PyPDFLoader y DirectoryLoader de LangChain. Un paso crucial es dividir estos documentos en 'fragmentos' o 'chunks'. Esto es porque los LLMs tienen un límite de contexto, y fragmentar la información nos permite trabajar con piezas manejables y relevantes.",
+      "commands": [
+        "import os",
+        "from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader",
+        "from langchain.text_splitter import RecursiveCharacterTextSplitter",
+        "",
+        "# Asegúrate de tener una carpeta 'data' en tu proyecto",
+        "# Y dentro, coloca tus documentos PDF (e.g., 'politicas_empresa.pdf')",
+        "if not os.path.exists('./data'):",
+        "    os.makedirs('./data')",
+        "# Puedes copiar un PDF de prueba o crear uno con texto simple para este tutorial",
+        "",
+        "data_path = './data'",
+        "loader = DirectoryLoader(data_path, glob='*.pdf', loader_cls=PyPDFLoader)",
+        "documents = loader.load()",
+        "",
+        "text_splitter = RecursiveCharacterTextSplitter(",
+        "    chunk_size=1000,",
+        "    chunk_overlap=200",
+        ")",
+        "chunks = text_splitter.split_documents(documents)",
+        "",
+        "print(f'Cargados {len(documents)} documentos, divididos en {len(chunks)} fragmentos.')"
+      ]
+    },
+    {
+      "id": "generacion_embeddings",
+      "title": "5. Generando Embeddings 100% Offline para tus Chunks",
+      "narration": "Una vez que tenemos nuestros fragmentos de texto, necesitamos convertirlos en 'embeddings'. Piensa en los embeddings como la representación numérica de un texto, que captura su significado semántico. Dos textos con significados similares tendrán embeddings 'cercanos' en un espacio multidimensional. Usaremos un modelo de Sentence Transformers que se descargará y ejecutará completamente en tu máquina, ¡garantizando que todo sea offline!",
+      "commands": [
+        "from langchain_community.embeddings import SentenceTransformerEmbeddings",
+        "",
+        "# Este modelo se descargará automáticamente la primera vez",
+        "# y luego funcionará offline.",
+        "embedding_model_name = 'sentence-transformers/all-MiniLM-L6-v2'",
+        "embeddings = SentenceTransformerEmbeddings(model_name=embedding_model_name)",
+        "",
+        "print(f'Modelo de embeddings local cargado: {embedding_model_name}')"
+      ]
+    },
+    {
+      "id": "almacenamiento_vectorial",
+      "title": "6. Almacenamiento Vectorial Local con ChromaDB",
+      "narration": "Con los embeddings listos, necesitamos un lugar donde almacenarlos y poder buscarlos eficientemente. Aquí entra ChromaDB. Es una base de datos vectorial ligera que podemos instalar y ejecutar localmente sin ningún problema. Almacenaremos nuestros fragmentos de texto junto con sus embeddings, creando así nuestra base de conocimiento offline.",
+      "commands": [
+        "from langchain_community.vectorstores import Chroma",
+        "",
+        "persist_directory = './chroma_db'",
+        "if not os.path.exists(persist_directory):",
+        "    os.makedirs(persist_directory)",
+        "",
+        "# Crear o cargar la base de datos vectorial",
+        "# Si es la primera vez, creará la DB y la poblará con los chunks y embeddings",
+        "# Si ya existe, la cargará",
+        "vectorstore = Chroma.from_documents(",
+        "    documents=chunks,",
+        "    embedding=embeddings,",
+        "    persist_directory=persist_directory",
+        ")",
+        "",
+        "vectorstore.persist()",
+        "print(f\"Base de datos vectorial ChromaDB creada/actualizada en '{persist_directory}'.\")"
+      ]
+    },
+    {
+      "id": "implementando_retrieval",
+      "title": "7. Implementando la Recuperación (Retrieval) de Información",
+      "narration": "Ahora que tenemos nuestra base de datos vectorial, podemos empezar a 'recuperar' información. Cuando un usuario hace una pregunta, primero convertimos esa pregunta en un embedding. Luego, buscamos en nuestra base de datos vectorial los fragmentos de texto cuyos embeddings son más similares a la pregunta. Estos fragmentos son los más relevantes y serán el 'contexto' para nuestro LLM.",
+      "commands": [
+        "# Si estás ejecutando este script en partes, recarga la DB si es necesario:",
+        "# vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings)",
+        "",
+        "query = '¿Cuál es la política de la empresa sobre el trabajo remoto?'",
+        "retrieved_docs = vectorstore.similarity_search(query, k=3)",
+        "",
+        "print(f'\\nDocumentos recuperados para la consulta \"{query}\":')",
+        "for i, doc in enumerate(retrieved_docs):",
+        "    print(f'--- Documento {i+1} ---')",
+        "    print(doc.page_content[:300] + '...') # Mostrar solo una parte del contenido",
+        "    print(f'Fuente: {doc.metadata.get(\"source\", \"N/A\")}')"
+      ]
+    },
+    {
+      "id": "integracion_llm_ollama",
+      "title": "8. Integrando el LLM Local con Ollama y LangChain (Generación)",
+      "narration": "Finalmente, es hora de la fase de 'generación'. Tomamos los fragmentos de texto recuperados y la pregunta original del usuario, y se los pasamos a nuestro LLM local (Ollama). El LLM utiliza este contexto para generar una respuesta coherente y precisa. LangChain nos ayuda a construir esta 'cadena' de forma muy intuitiva.",
+      "commands": [
+        "from langchain_community.llms import Ollama",
+        "from langchain.chains import create_retrieval_chain",
+        "from langchain.chains.combine_documents import create_stuff_documents_chain",
+        "from langchain_core.prompts import ChatPromptTemplate",
+        "",
+        "# Asegúrate de que Ollama esté corriendo y 'llama2' esté descargado (ollama run llama2)",
+        "llm = Ollama(model='llama2')",
+        "",
+        "prompt = ChatPromptTemplate.from_template(\"\"\"",
+        "Eres un asistente útil para PYMES. Responde a la pregunta basándote únicamente en el siguiente contexto:",
+        "Contexto: {context}",
+        "Pregunta: {input}",
+        "\"\"\")",
+        "",
+        "document_chain = create_stuff_documents_chain(llm, prompt)",
+        "retriever = vectorstore.as_retriever(search_kwargs={'k': 3})",
+        "retrieval_chain = create_retrieval_chain(retriever, document_chain)",
+        "",
+        "print('\\n--- Realizando consulta RAG ---')",
+        "response = retrieval_chain.invoke({'input': query}) # Usamos la query anterior",
+        "",
+        "print(f'\\nPregunta: {query}')",
+        "print(f'Respuesta del LLM: {response[\"answer\"]}')"
+      ]
+    },
+    {
+      "id": "demo_casos_uso",
+      "title": "9. Demostración Práctica y Casos de Uso Reales para PYMES",
+      "narration": "¡Y aquí está en acción! Nuestro sistema RAG offline funcionando. Puedes ver cómo responde a preguntas específicas basándose en el contenido de tus documentos. Esto es un cambio de juego para las PYMES. Imagina un chatbot interno para empleados, un sistema de soporte al cliente que responde al instante con tu propia base de conocimiento, o una herramienta para analizar documentos legales o técnicos de forma segura. Las posibilidades son enormes y todo sin salir de tu entorno local.",
+      "commands": [
+        "# Prueba con nuevas consultas para ver la versatilidad:",
+        "new_query_1 = '¿Qué debo hacer si quiero solicitar un día libre?'",
+        "response_1 = retrieval_chain.invoke({'input': new_query_1})",
+        "print(f'\\nPregunta: {new_query_1}')",
+        "print(f'Respuesta del LLM: {response_1[\"answer\"]}')",
+        "",
+        "new_query_2 = '¿Cuáles son los pasos para reportar un incidente de seguridad?'",
+        "response_2 = retrieval_chain.invoke({'input': new_query_2})",
+        "print(f'\\nPregunta: {new_query_2}')",
+        "print(f'Respuesta del LLM: {response_2[\"answer\"]}')"
+      ]
+    },
+    {
+      "id": "optimizaciones_futuro",
+      "title": "10. Optimizaciones y Próximos Pasos para tu Implementación",
+      "narration": "Hemos construido la base, pero siempre hay formas de mejorar. Puedes experimentar con diferentes modelos de embeddings y LLMs locales (Ollama tiene muchos). Ajustar el tamaño y solapamiento de los chunks puede mejorar la calidad. Considera añadir una interfaz de usuario simple con herramientas como Streamlit o Gradio para que tu equipo pueda interactuar fácilmente. Y, por supuesto, la actualización y gestión de tus documentos será clave para mantener tu IA relevante.",
+      "commands": []
+    },
+    {
+      "id": "conclusion_cta",
+      "title": "11. Conclusión y Llamada a la Acción",
+      "narration": "Hemos llegado al final de nuestro tutorial. Has aprendido a implementar un sistema RAG 100% offline, brindando privacidad, seguridad y control a tu PYME. ¡Esto es el futuro de la IA empresarial! Espero que este tutorial te haya sido increíblemente útil. Si te ha gustado, no olvides darle un 'me gusta', suscribirte al canal para más contenido como este y dejar tus comentarios o preguntas abajo. ¡Nos vemos en el próximo video!",
+      "commands": []
+    }
+  ]
+}
