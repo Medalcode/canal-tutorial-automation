@@ -6,7 +6,7 @@ con código que se escribe letra por letra, cursor parpadeante y resaltado de si
 
 import os
 from PIL import Image, ImageDraw, ImageFont
-from moviepy import ImageClip, concatenate_videoclips
+from moviepy import VideoClip, ImageClip
 import numpy as np
 
 # ── Dimensiones ──────────────────────────────────────────────────────────────
@@ -178,35 +178,28 @@ def generate_ide_clip(
     Returns:
         Un clip de MoviePy listo para componer.
     """
-    font      = _load_font(FONT_SIZE)
-    all_chars = list(code)
-    total     = len(all_chars)
-    typed     = ""
-    added     = 0
-    t         = 0.0
-    dt        = 1.0 / FPS
-    clips     = []
+    font = _load_font(FONT_SIZE)
+    total = len(code)
 
-    while t <= duration:
+    def make_frame(t):
         expected = min(int(t * chars_per_second), total)
-        while added < expected:
-            typed += all_chars[added]
-            added += 1
-
-        lines    = typed.split("\n")
+        typed = code[:expected]
+        
+        lines = typed.split("\n")
         cur_line = len(lines) - 1
-        cur_col  = len(lines[-1])
-        blink    = int(t * 2) % 2 == 0
+        cur_col = len(lines[-1])
+        blink = int(t * 2) % 2 == 0
+        
+        return _render_frame(lines, cur_line, cur_col, blink, filename, language, font)
 
-        frame = _render_frame(lines, cur_line, cur_col, blink, filename, language, font)
-        clips.append(ImageClip(frame, duration=dt))
-        t += dt
-
-    if not clips:
+    if total == 0:
         blank = _render_frame([], 0, 0, False, filename, language, font)
         return ImageClip(blank, duration=duration)
 
-    return concatenate_videoclips(clips)
+    clip = VideoClip(make_frame, duration=duration)
+    # Es vital setear el FPS aquí si la vamos a concatenar más tarde con otras clips que tienen fps
+    clip.fps = FPS
+    return clip
 
 
 # ── Prueba independiente ──────────────────────────────────────────────────────
