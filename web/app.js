@@ -251,7 +251,10 @@ async function generateWithAI() {
 
 async function generateVideoPreview() {
     const scriptId = document.getElementById('current-script-id').value;
-    if (!scriptId) return;
+    if (!scriptId) {
+        showStatus('❌ Primero debes generar un guion (Paso 1)', 'error');
+        return;
+    }
 
     // Ocultar preview anterior
     document.getElementById('preview-phase').style.display = 'none';
@@ -272,7 +275,10 @@ async function generateVideoPreview() {
 
 async function uploadToYoutube() {
     const scriptId = document.getElementById('current-script-id').value;
-    if (!scriptId) return;
+    if (!scriptId) {
+        showStatus('❌ Primero debes generar un guion (Paso 1)', 'error');
+        return;
+    }
 
     const ytTitle = document.getElementById('yt-title').value;
     const ytDesc  = document.getElementById('yt-desc').value;
@@ -288,6 +294,22 @@ async function uploadToYoutube() {
         currentJob = result.job_id;
         showProgressModal();
         monitorJobProgress('youtube');
+    } catch (err) {
+        showStatus(`Error: ${err.message}`, 'error');
+    }
+}
+
+async function generateVideoFromScript(scriptId = null) {
+    if (!scriptId) {
+        showStatus('Por favor selecciona un guión', 'error');
+        return;
+    }
+
+    try {
+        const result = await API.post(`/videos/generate?script_id=${scriptId}`, {});
+        currentJob = result.job_id;
+        showProgressModal();
+        monitorJobProgress('preview');
     } catch (err) {
         showStatus(`Error: ${err.message}`, 'error');
     }
