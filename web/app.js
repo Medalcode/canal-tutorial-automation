@@ -249,27 +249,34 @@ async function generateWithAI() {
     }
 }
 
-async function startVideoAndDownload() {
+async function generateVideoPreview() {
     const scriptId = document.getElementById('current-script-id').value;
     if (!scriptId) return;
+
+    // Ocultar preview anterior
+    document.getElementById('preview-phase').style.display = 'none';
+    document.getElementById('btn-generate-preview').disabled = true;
+    document.getElementById('btn-generate-preview').textContent = '⏳ Generando...';
 
     try {
         const result = await API.post(`/videos/generate?script_id=${scriptId}`, {});
         currentJob = result.job_id;
         showProgressModal();
-        monitorJobProgress('download');
+        monitorJobProgress('preview');
     } catch (err) {
         showStatus(`Error: ${err.message}`, 'error');
+        document.getElementById('btn-generate-preview').disabled = false;
+        document.getElementById('btn-generate-preview').textContent = '🎬 2. Generar Video (y previsualizar)';
     }
 }
 
-async function startVideoAndYoutube() {
+async function uploadToYoutube() {
     const scriptId = document.getElementById('current-script-id').value;
     if (!scriptId) return;
-    
+
     const ytTitle = document.getElementById('yt-title').value;
-    const ytDesc = document.getElementById('yt-desc').value;
-    const ytTags = JSON.parse(document.getElementById('yt-tags').value || '[]');
+    const ytDesc  = document.getElementById('yt-desc').value;
+    const ytTags  = JSON.parse(document.getElementById('yt-tags').value || '[]');
 
     try {
         const result = await API.post(`/videos/generate?script_id=${scriptId}`, {
@@ -281,26 +288,6 @@ async function startVideoAndYoutube() {
         currentJob = result.job_id;
         showProgressModal();
         monitorJobProgress('youtube');
-    } catch (err) {
-        showStatus(`Error: ${err.message}`, 'error');
-    }
-}
-
-async function generateVideoFromScript(scriptId = null) {
-    if (!scriptId) {
-        scriptId = document.getElementById('script-select').value;
-        if (!scriptId) {
-            showStatus('Por favor selecciona un guión', 'error');
-            return;
-        }
-    }
-
-    try {
-        const result = await API.post(`/videos/generate?script_id=${scriptId}`, {});
-        currentJob = result.job_id;
-
-        showProgressModal();
-        monitorJobProgress();
     } catch (err) {
         showStatus(`Error: ${err.message}`, 'error');
     }
@@ -324,7 +311,6 @@ async function monitorJobProgress(action = null) {
 
             const progressFill = document.getElementById('progress-fill');
             progressFill.style.width = `${Math.min(job.progress, 100)}%`;
-
             document.getElementById('progress-text').textContent = job.message;
 
             const details = document.getElementById('job-details');
@@ -344,22 +330,39 @@ async function monitorJobProgress(action = null) {
                     loadDashboard();
                     refreshVideosList();
 
-                    if (action === 'download' && job.output_files) {
-                        const videoFile = job.output_files.find(f => f.name.endsWith('.mp4'));
+                    if (action === 'preview' && job.output_files) {
+                        // Mostrar el video en el preview inline
+                        const videoFile = job.output_files.find(f => f.name === 'video_con_musica.mp4') ||
+                                          job.output_files.find(f => f.name.endsWith('.mp4'));
                         if (videoFile) {
-                            const a = document.createElement('a');
-                            a.href = videoFile.url;
-                            a.download = videoFile.name;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            showStatus('📥 Descarga iniciada automáticamente.', 'success');
+                            const videoEl = document.getElementById('video-preview');
+                            videoEl.src = videoFile.url + '?t=' + Date.now();
+                            document.getElementById('generated-video-url').value = videoFile.url;
+                            document.getElementById('preview-phase').style.display = 'block';
+                            videoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            showStatus('✅ Video generado. ¡Revísalo antes de subir!', 'success');
+                        }
+                        // Restaurar botón
+                        const btn = document.getElementById('btn-generate-preview');
+                        btn.disabled = false;
+                        btn.textContent = '🎬 2. Generar Video (y previsualizar)';
+
+                    } else if (action === 'youtube') {
+                        const ytMsg = job.message || '';
+                        const urlMatch = ytMsg.match(/https:\/\/youtu\.be\/[\w-]+/);
+                        if (urlMatch) {
+                            showStatus(`🎉 ¡Subido! <a href="${urlMatch[0]}" target="_blank" style="color:#ff0">${urlMatch[0]}</a>`, 'success');
+                        } else {
+                            showStatus('✅ Subida a YouTube completada.', 'success');
                         }
                     }
-                }, 2000);
+                }, 1500);
+
             } else if (job.status === 'failed') {
                 document.getElementById('progress-title').textContent = '❌ Error en la Generación';
                 clearInterval(autoRefreshInterval);
+                const btn = document.getElementById('btn-generate-preview');
+                if (btn) { btn.disabled = false; btn.textContent = '🎬 2. Generar Video (y previsualizar)'; }
             }
         } catch (err) {
             console.error('Error monitoring job:', err);

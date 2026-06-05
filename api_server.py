@@ -17,7 +17,8 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 app = FastAPI(title="Video Generator Pro", version="1.0")
 
@@ -111,8 +112,12 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
         )
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="GEMINI_API_KEY no configurada. Establécela como variable de entorno."
+            )
 
         prompt = f"""
         Eres un experto creador de tutoriales técnicos para YouTube para niños y principiantes.
@@ -147,14 +152,24 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
         }}
         """
 
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
+        client = genai.Client(api_key=api_key)
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
                 response_mime_type="application/json",
             )
         )
 
-        script_data = json.loads(response.text)
+        # Limpiar posibles marcadores de bloque de código
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+
+        script_data = json.loads(text)
         script_id = str(uuid.uuid4())[:8]
         script_file = SCRIPTS_DIR / f"{script_id}.json"
 

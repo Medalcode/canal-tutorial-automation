@@ -125,13 +125,30 @@
                                 </div>
                                 <input type="hidden" id="yt-tags">
                             </div>
-                            
+
+                            <!-- Paso 2: Generar video -->
                             <div style="margin-top: 5px;">
-                                <button class="btn-secondary btn-large" onclick="startVideoAndYoutube()" style="background-color: #ff0000; color: white; border: none; width: 100%;">
-                                    🔴 2. Crear Video y Subir a YouTube
+                                <button id="btn-generate-preview" class="btn-primary btn-large" onclick="generateVideoPreview()" style="width: 100%; font-size: 1rem;">
+                                    🎬 2. Generar Video (y previsualizar)
                                 </button>
                             </div>
+
+                            <!-- Paso 3: Subir (aparece tras preview) -->
+                            <div id="preview-phase" style="display:none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                                <h4 style="margin-top:0; color: var(--text-secondary);">📺 Previsualización</h4>
+                                <video id="video-preview" controls style="width:100%; border-radius:8px; background:#000; max-height:360px;"></video>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+                                    <button class="btn-secondary" onclick="generateVideoPreview()" style="padding:10px;">
+                                        🔄 Regenerar Video
+                                    </button>
+                                    <button onclick="uploadToYoutube()" style="background:#ff0000; color:white; border:none; border-radius:8px; padding:10px; cursor:pointer; font-size:1rem; font-weight:600;">
+                                        🔴 3. Subir a YouTube
+                                    </button>
+                                </div>
+                            </div>
+
                             <input type="hidden" id="current-script-id">
+                            <input type="hidden" id="generated-video-url">
                         </div>
                     </div>
                 </section>
