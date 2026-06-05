@@ -115,14 +115,15 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
         model = genai.GenerativeModel("gemini-2.5-flash")
 
         prompt = f"""
-        Eres un experto creador de tutoriales técnicos para YouTube.
+        Eres un experto creador de tutoriales técnicos para YouTube para niños y principiantes.
         Crea un guion estructurado basándote en las siguientes ideas dadas por el usuario:
         "{request.topic}"
 
         Requisitos:
         - Mínimo {request.num_scenes} secciones
-        - Narración clara para principiantes
-        - Comandos/código realista
+        - Narración clara, motivadora y en español latino
+        - Cada escena DEBE tener código Python REAL y funcional en el campo "commands"
+        - El código debe ser educativo, bien comentado y mostrar conceptos paso a paso
         - Duración: 8-12 minutos
 
         Responde SOLO con JSON válido (sin ```json):
@@ -132,7 +133,16 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
           "youtube_description": "Descripción optimizada para SEO...",
           "youtube_tags": ["tag1", "tag2", "tag3"],
           "scenes": [
-            {{"id": "intro", "title": "Introducción", "narration": "...", "commands": ["..."]}}
+            {{
+              "id": "intro",
+              "title": "Introducción",
+              "narration": "Texto de narración clara...",
+              "language": "python",
+              "commands": [
+                "# Importamos las librerías necesarias\nimport os\nfrom pathlib import Path",
+                "def mi_funcion():\n    print('Hola mundo')\n\nmi_funcion()"
+              ]
+            }}
           ]
         }}
         """

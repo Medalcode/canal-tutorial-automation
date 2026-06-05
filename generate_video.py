@@ -19,6 +19,7 @@ from moviepy import (
     concatenate_videoclips,
 )
 from moviepy.video.fx import FadeIn, FadeOut
+import ide_simulator
 
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -28,7 +29,7 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
-W, H = 1280, 720
+W, H = 1920, 1080
 BG_COLOR = (20, 22, 28)
 
 
@@ -156,14 +157,60 @@ def make_subtitle_clips(subtitle_chunks, width, height):
 def build_scene_clip(scene):
     dur = scene["duration"]
     sid = scene["id"]
-    commands = scene.get("commands", ["# ..."])
+    commands = scene.get("commands", [])
     title = scene.get("title", sid.upper())
+    language = scene.get("language", "python")
 
-    bg = make_background(scene)
-    title_clip = TextClip(font=FONT_BOLD, text=title, font_size=44, color="white").with_position((80, 50)).with_duration(dur)
-    panel_clips = make_terminal_panel(commands, dur)
+    # Determinar si hay código real para mostrar en el IDE
+    # Un comando es "código" si tiene más de una línea o contiene palabras clave
+    code_keywords = {"def ", "class ", "import ", "for ", "while ", "if ", "==", "->", ":"}
+    code_lines = []
+    for cmd in commands:
+        if any(kw in cmd for kw in code_keywords) or "\n" in cmd or len(cmd) > 40:
+            code_lines.append(cmd)
 
-    return CompositeVideoClip([bg, title_clip] + panel_clips).with_duration(dur)
+    if code_lines:
+        # ── Modo IDE: simulador de editor de código ──────────────────────────
+        code_text = "\n".join(code_lines)
+        # Calcular velocidad de escritura para que termine antes del final de la escena
+        total_chars = len(code_text)
+        typing_duration = max(dur * 0.85, 3.0)  # ocupa el 85% del tiempo de la escena
+        cps = total_chars / max(typing_duration, 1)
+        cps = max(8.0, min(cps, 35.0))  # entre 8 y 35 chars/seg
+
+        # Nombre de archivo según el lenguaje
+        ext_map = {"python": ".py", "bash": ".sh", "javascript": ".js",
+                   "typescript": ".ts", "rust": ".rs", "go": ".go"}
+        ext = ext_map.get(language, ".py")
+        filename = f"{sid.replace('-', '_')}{ext}"
+
+        ide_clip = ide_simulator.generate_ide_clip(
+            code=code_text,
+            duration=dur,
+            filename=filename,
+            language=language,
+            chars_per_second=cps,
+        ).resized((W, H))
+
+        # Título superpuesto en la esquina superior izquierda del IDE
+        title_clip = (
+            TextClip(font=FONT_BOLD, text=title, font_size=36, color="white",
+                     stroke_color="black", stroke_width=2)
+            .with_position((80, 60))
+            .with_duration(dur)
+        )
+        return CompositeVideoClip([ide_clip, title_clip]).with_duration(dur)
+
+    else:
+        # ── Modo terminal clásico: fondo oscuro + texto de comandos ──────────
+        bg = make_background(scene)
+        title_clip = (
+            TextClip(font=FONT_BOLD, text=title, font_size=44, color="white")
+            .with_position((80, 50))
+            .with_duration(dur)
+        )
+        panel_clips = make_terminal_panel(commands, dur)
+        return CompositeVideoClip([bg, title_clip] + panel_clips).with_duration(dur)
 
 
 def make_intro(duration=6):
