@@ -8,18 +8,26 @@ let autoRefreshInterval = null;
 
 const API = {
     async get(endpoint) {
-        const res = await fetch(`/api${endpoint}`);
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        const res = await fetch('/api' + endpoint);
+        if (!res.ok) {
+            let detail = '';
+            try { const errData = await res.json(); detail = errData.detail; } catch(e) {}
+            throw new Error(`API Error: ${res.status} ${detail ? '- ' + detail : ''}`);
+        }
         return res.json();
     },
 
     async post(endpoint, data) {
-        const res = await fetch(`/api${endpoint}`, {
+        const res = await fetch('/api' + endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        if (!res.ok) {
+            let detail = '';
+            try { const errData = await res.json(); detail = errData.detail; } catch(e) {}
+            throw new Error(`API Error: ${res.status} ${detail ? '- ' + detail : ''}`);
+        }
         return res.json();
     },
 

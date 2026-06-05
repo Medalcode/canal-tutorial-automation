@@ -187,7 +187,11 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
             "file": str(script_file)
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
