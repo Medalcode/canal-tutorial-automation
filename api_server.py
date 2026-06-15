@@ -313,7 +313,17 @@ async def generate_video_background(
             job["progress"] = 100
             job["message"] = "Video generado exitosamente"
 
-            # Listar archivos de output
+            # Renombrar archivo de output final con un timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_video_name = f"tutorial_{timestamp}.mp4"
+            final_video_path = OUTPUT_DIR / final_video_name
+            
+            original_video = OUTPUT_DIR / "video_con_musica.mp4"
+            if original_video.exists():
+                # Reemplazamos el antiguo video si existía por el nuevo nombre
+                original_video.rename(final_video_path)
+
+            # Listar archivos de output actualizados
             output_files = []
             for file in OUTPUT_DIR.glob("*"):
                 if file.is_file():
@@ -330,10 +340,9 @@ async def generate_video_background(
                 save_job(job_id, job)
                 try:
                     import youtube_uploader
-                    video_file_path = str(OUTPUT_DIR / "video_con_musica.mp4")
-                    # Llama al script de subida
+                    # Llama al script de subida usando el NUEVO archivo renombrado
                     video_url = youtube_uploader.upload_to_youtube(
-                        video_file_path, 
+                        str(final_video_path), 
                         youtube_title or "Nuevo Tutorial", 
                         youtube_description or "Tutorial generado automáticamente.", 
                         youtube_tags or []
@@ -344,7 +353,6 @@ async def generate_video_background(
                     job["message"] = f"Video creado, pero falló la subida a YouTube: {str(e)}"
                     save_job(job_id, job)
                     return
-
         else:
             job["status"] = "failed"
             job["progress"] = 0
@@ -436,6 +444,6 @@ app.mount("/", StaticFiles(directory="web", html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Iniciando Video Generator Pro...")
-    print("📊 API disponible en: http://localhost:8000/api")
-    print("🌐 Frontend en: http://localhost:8000")
-    uvicorn.run("api_server:app", host="0.0.0.0", port=8000, reload=True)
+    print("📊 API disponible en: http://localhost:8001/api")
+    print("🌐 Frontend en: http://localhost:8001")
+    uvicorn.run("api_server:app", host="0.0.0.0", port=8001, reload=True)

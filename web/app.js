@@ -434,11 +434,13 @@ async function refreshVideosList() {
         const files = await API.get('/files');
         const videos = files.filter(f => f.name.endsWith('.mp4'));
 
-        const html = videos.map(file => `
+        const html = videos.map(file => {
+            const dateStr = new Date(file.modified * 1000).toLocaleString();
+            return `
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">🎬 ${file.name}</div>
-                    <div class="card-meta">${(file.size / 1024 / 1024).toFixed(1)} MB</div>
+                    <div class="card-meta">${(file.size / 1024 / 1024).toFixed(1)} MB <br> <span style="font-size: 0.8em; color: var(--text-secondary)">📅 ${dateStr}</span></div>
                 </div>
                 <div class="card-footer">
                     <a href="/api/files/${file.name}" download class="btn-primary" style="text-decoration:none;text-align:center;flex:1;">⬇️ Descargar</a>

@@ -40,12 +40,12 @@ Pipeline automatizado para generar tutoriales en video con IA, narración, subt�
 - ✅ Títulos de escenas con fuente profesional
 - ✅ Overlay estilo terminal (código verde)
 
-### 🎬 Video & Composición
-- ✅ Múltiples escenas por guión
-- ✅ Intro animada y outro con call-to-action
-- ✅ Resolución 1920x1080 Full HD
-- ✅ 30 FPS (fluido)
-- ✅ Bitrate 5Mbps (máxima fidelidad)
+### 🎬 Video & Composición (Remotion)
+- ✅ Composición en React con Remotion
+- ✅ Pantalla dividida: Avatar animado a la izquierda, código a la derecha
+- ✅ Avatar generado por IA con animación reactiva a la voz
+- ✅ VSCode simulado con Monaco Editor
+- ✅ Resolución 1920x1080 Full HD a 30 FPS
 
 ### 🌐 Interfaz Web
 - ✅ Panel de control moderno (dark mode)
@@ -105,7 +105,7 @@ source venv/bin/activate
 python api_server.py
 ```
 
-Luego abre [http://localhost:8000](http://localhost:8000) en tu navegador.
+Luego abre [http://localhost:8001](http://localhost:8001) en tu navegador.
 
 ---
 
@@ -131,10 +131,14 @@ Luego abre [http://localhost:8000](http://localhost:8000) en tu navegador.
 ```
 canal-tutorial-automation/
 ├── api_server.py          # Backend FastAPI
-├── generate_video.py      # Motor de renderizado de video
-├── script_generator_pro.py # Generador de guiones CLI
+├── generate_video.py      # Script principal para procesar video
+├── remotion-renderer/     # Proyecto de Remotion (Video renderer en React)
+│   ├── src/
+│   │   ├── Avatar.tsx     # Avatar reactivo al audio
+│   │   ├── CodeEditor.tsx # Monaco Editor integrado
+│   │   └── Composition.tsx# Composición principal
 ├── youtube_uploader.py    # Módulo de subida a YouTube
-├── iniciar.sh             # Script de inicio con doble clic
+├── iniciar.sh             # Script de inicio
 ├── requirements.txt       # Dependencias Python
 ├── web/
 │   ├── index.html         # Interfaz web

@@ -26,7 +26,7 @@ if [ ! -f "youtube_token.pkl" ]; then
 fi
 
 # Abrir el navegador automáticamente después de 2 segundos
-(sleep 2 && xdg-open http://localhost:8000 2>/dev/null) &
+(sleep 2 && xdg-open http://localhost:8001 2>/dev/null) &
 
 # Iniciar el servidor local
 python3 api_server.py

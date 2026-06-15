@@ -355,6 +355,37 @@ def compose_video(audio_path, subtitle_chunks, scenes, output_video):
     print(f"Video generado: {output_video}")
 
 
+def compose_video_remotion(audio_path, subtitle_chunks, scenes, output_video):
+    import json, shutil, subprocess, os
+    
+    audio = AudioFileClip(audio_path)
+    total_duration = audio.duration
+    print(f"Duracion audio: {total_duration:.2f}s")
+    
+    assign_durations(scenes, total_duration * 0.9)
+    
+    props = {
+        "audio_duration": total_duration,
+        "scenes": scenes,
+        "subtitles": subtitle_chunks
+    }
+    
+    public_dir = os.path.join("remotion-renderer", "public")
+    os.makedirs(public_dir, exist_ok=True)
+    shutil.copy(audio_path, os.path.join(public_dir, "narracion.mp3"))
+    
+    print("Renderizando con Remotion...")
+    props_json = json.dumps(props)
+    
+    # Llama a remotion render pasando props como argumento
+    subprocess.run([
+        "npx", "remotion", "render", "Tutorial", f"../{output_video}",
+        f"--props={props_json}"
+    ], cwd="remotion-renderer", check=True)
+    print(f"Render Remotion completado: {output_video}")
+
+
+
 def download_fallback_music(music_path):
     """Descarga música de fondo libre de derechos si no existe el archivo local."""
     import urllib.request
@@ -452,8 +483,8 @@ async def main():
 
     subtitle_chunks = transcribe_audio(audio_path)
 
-    print("Componiendo video con moviepy...")
-    compose_video(audio_path, subtitle_chunks, scenes, video_path)
+    print("Componiendo video con Remotion...")
+    compose_video_remotion(audio_path, subtitle_chunks, scenes, video_path)
 
     post_process(video_path)
     print("Listo!")
