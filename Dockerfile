@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    fonts-dejavu \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar archivos de requisitos

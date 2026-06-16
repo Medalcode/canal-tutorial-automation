@@ -1,8 +1,10 @@
+import argparse
 import asyncio
 import json
 import os
 import re
 import subprocess
+import shutil
 from collections import defaultdict
 from pathlib import Path
 
@@ -24,14 +26,31 @@ import ide_simulator
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
 VOICE = "es-MX-DaliaNeural"
-FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
 W, H = 1920, 1080
 BG_COLOR = (20, 22, 28)
 
+def get_font_path(font_name):
+    # Intentar cargar desde assets locales primero
+    local_path = os.path.join(ASSETS_DIR, "fonts", font_name)
+    if os.path.exists(local_path):
+        return local_path
+    
+    # Fallback a las fuentes del sistema
+    linux_paths = [
+        f"/usr/share/fonts/truetype/dejavu/{font_name}",
+        f"/usr/share/fonts/dejavu/{font_name}",
+        f"/usr/share/fonts/TTF/{font_name}"
+    ]
+    for p in linux_paths:
+        if os.path.exists(p):
+            return p
+    return "Arial" # Fallback generico de MoviePy
+
+FONT_MONO = get_font_path("DejaVuSansMono.ttf")
+FONT = get_font_path("DejaVuSans.ttf")
+FONT_BOLD = get_font_path("DejaVuSans-Bold.ttf")
 
 def load_script(json_path: str):
     with open(json_path, "r", encoding="utf-8") as f:
@@ -47,7 +66,6 @@ def assign_durations(scenes, total_duration):
     for s in scenes:
         s["duration"] = max(8.0, (s["chars"] / total_chars) * total_duration)
 
-
 def scene_image_path(scene_id):
     for ext in (".jpg", ".png"):
         p = os.path.join(ASSETS_DIR, f"scene_{scene_id}{ext}")
@@ -55,14 +73,12 @@ def scene_image_path(scene_id):
             return p
     return None
 
-
 def make_background(scene):
     dur = scene["duration"]
     img_path = scene_image_path(scene["id"])
     if img_path:
         return ImageClip(img_path).resized((W, H)).with_duration(dur)
     return ColorClip(size=(W, H), color=BG_COLOR).with_duration(dur)
-
 
 def make_terminal_panel(commands, duration):
     n = len(commands) or 1
@@ -83,8 +99,6 @@ def make_terminal_panel(commands, duration):
         )
     return clips
 
-
-# SCENE_COMMANDS and SCENE_TITLES removed as they are now loaded from JSON
 
 async def generate_audio(scenes, output_audio):
     full_text = " ".join([s.get("narration", "") for s in scenes])
@@ -162,7 +176,6 @@ def build_scene_clip(scene):
     language = scene.get("language", "python")
 
     # Determinar si hay código real para mostrar en el IDE
-    # Un comando es "código" si tiene más de una línea o contiene palabras clave
     code_keywords = {"def ", "class ", "import ", "for ", "while ", "if ", "==", "->", ":"}
     code_lines = []
     for cmd in commands:
@@ -170,15 +183,12 @@ def build_scene_clip(scene):
             code_lines.append(cmd)
 
     if code_lines:
-        # ── Modo IDE: simulador de editor de código ──────────────────────────
         code_text = "\n".join(code_lines)
-        # Calcular velocidad de escritura para que termine antes del final de la escena
         total_chars = len(code_text)
-        typing_duration = max(dur * 0.85, 3.0)  # ocupa el 85% del tiempo de la escena
+        typing_duration = max(dur * 0.85, 3.0)
         cps = total_chars / max(typing_duration, 1)
-        cps = max(8.0, min(cps, 35.0))  # entre 8 y 35 chars/seg
+        cps = max(8.0, min(cps, 35.0))
 
-        # Nombre de archivo según el lenguaje
         ext_map = {"python": ".py", "bash": ".sh", "javascript": ".js",
                    "typescript": ".ts", "rust": ".rs", "go": ".go"}
         ext = ext_map.get(language, ".py")
@@ -192,7 +202,6 @@ def build_scene_clip(scene):
             chars_per_second=cps,
         ).resized((W, H))
 
-        # Título superpuesto en la esquina superior izquierda del IDE
         title_clip = (
             TextClip(font=FONT_BOLD, text=title, font_size=36, color="white",
                      stroke_color="black", stroke_width=2)
@@ -202,7 +211,6 @@ def build_scene_clip(scene):
         return CompositeVideoClip([ide_clip, title_clip]).with_duration(dur)
 
     else:
-        # ── Modo terminal clásico: fondo oscuro + texto de comandos ──────────
         bg = make_background(scene)
         title_clip = (
             TextClip(font=FONT_BOLD, text=title, font_size=44, color="white")
@@ -215,18 +223,15 @@ def build_scene_clip(scene):
 
 def make_intro(duration=6):
     clips = []
-    # Background with subtle gradient via layered clips
     bg = ColorClip(size=(W, H), color=BG_COLOR).with_duration(duration)
     clips.append(bg)
 
-    # Accent bar that grows
     bar = (ColorClip(size=(4, 200), color=(0, 200, 0))
            .with_duration(duration)
            .with_position(("center", 160)))
     clips.append(bar)
 
-    # Title typewriter (word by word)
-    title_words = ["Android", "como", "Servidor"]
+    title_words = ["Tutorial", "Generado", "por IA"]
     gap = duration / (len(title_words) + 2)
     for i, word in enumerate(title_words):
         t = (TextClip(font=FONT_BOLD, text=word, font_size=80, color="white")
@@ -235,21 +240,12 @@ def make_intro(duration=6):
              .with_duration(duration))
         clips.append(t)
 
-    # Subtitle fade in
-    sub = (TextClip(font=FONT, text="Con Termux + Python + FastAPI", font_size=40, color="#00FF00")
+    sub = (TextClip(font=FONT, text="Automatizado con Python", font_size=40, color="#00FF00")
            .with_position(("center", 500))
            .with_start(3.5)
            .with_duration(duration - 3.5)
            .with_effects([FadeIn(0.5)]))
     clips.append(sub)
-
-    # Bottom info line
-    info = (TextClip(font=FONT, text="Pipeline automatizado con Python", font_size=22, color=(100, 100, 100))
-            .with_position(("center", H - 80))
-            .with_start(4.0)
-            .with_duration(duration - 4.0)
-            .with_effects([FadeIn(0.5)]))
-    clips.append(info)
 
     return CompositeVideoClip(clips).with_duration(duration)
 
@@ -266,7 +262,7 @@ def make_outro(duration=8):
               .with_effects([FadeIn(0.8)]))
     clips.append(thanks)
 
-    sub = (TextClip(font=FONT, text="Suscribete para mas tutoriales como este", font_size=36, color="#00FF00")
+    sub = (TextClip(font=FONT, text="Suscribete para mas tutoriales", font_size=36, color="#00FF00")
            .with_position(("center", 320))
            .with_start(2.0)
            .with_duration(duration - 2.5)
@@ -287,7 +283,6 @@ def make_outro(duration=8):
                 .with_effects([FadeIn(0.5)]))
     clips.append(btn_text)
 
-    # Fade out at end
     fade_out = (ColorClip(size=(W, H), color=(0, 0, 0))
                 .with_duration(1.5)
                 .with_start(duration - 1.5)
@@ -333,61 +328,21 @@ def compose_video(audio_path, subtitle_chunks, scenes, output_video):
     sub_clips = make_subtitle_clips(subtitle_chunks, W, H)
     final = CompositeVideoClip([final] + sub_clips)
 
-    print(f"Duracion final: {final.duration:.2f}s")
-    print("Renderizando video con mayor calidad...")
+    print(f"Duracion final de render raw: {final.duration:.2f}s")
+    print("Renderizando video temporal...")
+    # Generamos el video crudo que luego pasará por post-proceso
     final.write_videofile(
         output_video,
         fps=30,
         codec="libx264",
         audio_codec="aac",
-        preset="slow",
-        bitrate="5000k",
-        ffmpeg_params=[
-            "-movflags", "+faststart",
-            "-profile:v", "high",
-            "-level", "4.2",
-            "-pix_fmt", "yuv420p",
-            "-b:v", "5M",
-            "-maxrate", "6M",
-            "-bufsize", "10M",
-        ],
+        preset="ultrafast",  # rápido aquí, lo optimizaremos en post-proceso
+        bitrate="5000k"
     )
-    print(f"Video generado: {output_video}")
-
-
-def compose_video_remotion(audio_path, subtitle_chunks, scenes, output_video):
-    import json, shutil, subprocess, os
-    
-    audio = AudioFileClip(audio_path)
-    total_duration = audio.duration
-    print(f"Duracion audio: {total_duration:.2f}s")
-    
-    assign_durations(scenes, total_duration * 0.9)
-    
-    props = {
-        "audio_duration": total_duration,
-        "scenes": scenes,
-        "subtitles": subtitle_chunks
-    }
-    
-    public_dir = os.path.join("remotion-renderer", "public")
-    os.makedirs(public_dir, exist_ok=True)
-    shutil.copy(audio_path, os.path.join(public_dir, "narracion.mp3"))
-    
-    print("Renderizando con Remotion...")
-    props_json = json.dumps(props)
-    
-    # Llama a remotion render pasando props como argumento
-    subprocess.run([
-        "npx", "remotion", "render", "Tutorial", f"../{output_video}",
-        f"--props={props_json}"
-    ], cwd="remotion-renderer", check=True)
-    print(f"Render Remotion completado: {output_video}")
-
+    print(f"Video temporal renderizado: {output_video}")
 
 
 def download_fallback_music(music_path):
-    """Descarga música de fondo libre de derechos si no existe el archivo local."""
     import urllib.request
     url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sunshine.mp3"
     try:
@@ -401,44 +356,38 @@ def download_fallback_music(music_path):
         return False
 
 
-def post_process(input_video):
+def post_process(input_video, final_output, thumb_path):
     music_path = os.path.join(ASSETS_DIR, "musica_fondo.mp3")
-    temp_music = os.path.join(OUTPUT_DIR, "video_temp_music.mp4")
-    output_1080p = os.path.join(OUTPUT_DIR, "video_con_musica.mp4")
-    thumb_path = os.path.join(OUTPUT_DIR, "thumbnail.png")
 
-    current = input_video
-
-    # Si no existe la musica, intentar descargarla automaticamente
     if not os.path.exists(music_path):
         download_fallback_music(music_path)
 
-    if os.path.exists(music_path):
-        print("Post-proceso: anadiendo musica de fondo...")
-        try:
-            subprocess.run([
-                FFMPEG_BIN, "-y",
-                "-i", current,
-                "-i", music_path,
-                "-filter_complex",
-                "[1:a]volume=0.06,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
-                "[0:a][music]amix=inputs=2:duration=first[audio]",
-                "-map", "0:v", "-map", "[audio]",
-                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
-                temp_music,
-            ], check=True, capture_output=True)
-            print(f"Musica anadida: {temp_music}")
-            current = temp_music
-        except subprocess.CalledProcessError as e:
-            print(f"Error al mezclar musica, se continua sin ella: {e}")
-            if os.path.exists(music_path):
-                os.remove(music_path)
-
-    print("Post-proceso: upscaling a 1080p con mejor calidad...")
-    subprocess.run([
+    has_music = os.path.exists(music_path)
+    print("Post-proceso: upscaling a 1080p, calidad lenta y añadiendo música si aplica...")
+    
+    cmd = [
         FFMPEG_BIN, "-y",
-        "-i", current,
-        "-vf", "scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease",
+        "-i", input_video
+    ]
+    
+    if has_music:
+        cmd.extend(["-i", music_path])
+        cmd.extend([
+            "-filter_complex",
+            # Escalado de video
+            "[0:v]scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease[vout];"
+            # Mezcla de audio
+            "[1:a]volume=0.06,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
+            "[0:a][music]amix=inputs=2:duration=first[aout]",
+            "-map", "[vout]", "-map", "[aout]"
+        ])
+    else:
+        cmd.extend([
+            "-vf", "scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease",
+            "-map", "0:v", "-map", "0:a"
+        ])
+        
+    cmd.extend([
         "-c:v", "libx264",
         "-preset", "slow",
         "-crf", "16",
@@ -451,44 +400,67 @@ def post_process(input_video):
         "-profile:v", "high",
         "-level", "4.2",
         "-pix_fmt", "yuv420p",
-        output_1080p,
-    ], check=True, capture_output=True)
-    print(f"Video 1080p: {output_1080p}")
+        final_output
+    ])
 
-    dur_out = subprocess.run([FFMPEG_BIN, "-i", output_1080p], capture_output=True, text=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        print(f"Video final procesado: {final_output}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error en post_process ffmpeg: {e.stderr.decode()}")
+        raise e
+
+    # Extraer miniatura
+    dur_out = subprocess.run([FFMPEG_BIN, "-i", final_output], capture_output=True, text=True)
     dur_line = [l for l in dur_out.stderr.split("\n") if "Duration" in l]
     if dur_line:
-        parts = [float(x) for x in dur_line[0].split()[1].strip(",").split(":")]
-        mid = (parts[0] * 3600 + parts[1] * 60 + parts[2]) / 2
-        subprocess.run([FFMPEG_BIN, "-y", "-ss", str(mid), "-i", output_1080p, "-vframes", "1", thumb_path], check=True, capture_output=True)
-        print(f"Thumbnail: {thumb_path}")
-
+        try:
+            time_str = dur_line[0].split()[1].strip(",")
+            h, m, s = map(float, time_str.split(":"))
+            mid = (h * 3600 + m * 60 + s) / 2
+            subprocess.run([FFMPEG_BIN, "-y", "-ss", str(mid), "-i", final_output, "-vframes", "1", thumb_path], check=True, capture_output=True)
+            print(f"Thumbnail: {thumb_path}")
+        except Exception as e:
+            print(f"No se pudo generar thumbnail: {e}")
 
 async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--script", required=True, help="Ruta al archivo script.json")
+    parser.add_argument("--job-id", required=True, help="ID único para este trabajo")
+    args = parser.parse_args()
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(ASSETS_DIR, exist_ok=True)
 
-    script_path = "script.json"
-    if not os.path.exists(script_path):
-        print(f"ERROR: No se encontró {script_path}. Ejecuta generate_script.py primero.")
+    if not os.path.exists(args.script):
+        print(f"ERROR: No se encontró el script {args.script}")
         return
 
-    scenes = load_script(script_path)
+    scenes = load_script(args.script)
 
-    audio_path = os.path.join(OUTPUT_DIR, "narracion.mp3")
-    video_path = os.path.join(OUTPUT_DIR, "video_final.mp4")
+    audio_path = os.path.join(OUTPUT_DIR, f"narracion_{args.job_id}.mp3")
+    temp_video_path = os.path.join(OUTPUT_DIR, f"temp_video_{args.job_id}.mp4")
+    final_video_path = os.path.join(OUTPUT_DIR, f"video_con_musica_{args.job_id}.mp4")
+    thumb_path = os.path.join(OUTPUT_DIR, f"thumbnail_{args.job_id}.png")
 
     print("Generando audio con edge-tts...")
     await generate_audio(scenes, audio_path)
 
     subtitle_chunks = transcribe_audio(audio_path)
 
-    print("Componiendo video con Remotion...")
-    compose_video_remotion(audio_path, subtitle_chunks, scenes, video_path)
+    print("Componiendo video con MoviePy...")
+    compose_video(audio_path, subtitle_chunks, scenes, temp_video_path)
 
-    post_process(video_path)
+    post_process(temp_video_path, final_video_path, thumb_path)
+    
+    # Limpiar archivos temporales
+    try:
+        os.remove(audio_path)
+        os.remove(temp_video_path)
+    except Exception as e:
+        print(f"Aviso al limpiar temporales: {e}")
+        
     print("Listo!")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

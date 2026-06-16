@@ -8,6 +8,7 @@ import subprocess
 import sys
 import os
 import argparse
+import uuid
 from pathlib import Path
 
 
@@ -71,8 +72,10 @@ def main():
         print(f"❌ Script no encontrado: {args.output}")
         sys.exit(1)
 
+    job_id = str(uuid.uuid4())[:12]
+    
     if not run_command(
-        [sys.executable, "generate_video.py"],
+        [sys.executable, "generate_video.py", "--script", args.output, "--job-id", job_id],
         "Generando video (esto puede tardar 30-60 min)"
     ):
         sys.exit(1)
@@ -81,12 +84,12 @@ def main():
     print("   PIPELINE COMPLETADO")
     print("✅ "*20)
 
-    output_file = "output/video_con_musica.mp4"
+    output_file = f"output/video_con_musica_{job_id}.mp4"
     if os.path.exists(output_file):
         size_mb = os.path.getsize(output_file) / (1024 * 1024)
         print(f"\n🎬 Video final: {output_file} ({size_mb:.1f} MB)")
-        print(f"📸 Thumbnail: output/thumbnail.png")
-        print(f"🎵 Audio: output/narracion.mp3")
+        print(f"📸 Thumbnail: output/thumbnail_{job_id}.png")
+        print(f"🎵 Audio: output/narracion_{job_id}.mp3")
     else:
         print(f"\n⚠️  Video no encontrado en {output_file}")
 

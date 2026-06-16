@@ -38,8 +38,9 @@ CHAR_W      = 13  # ancho aproximado de cada carácter monoespaciado
 
 
 def _load_font(size):
-    """Carga una fuente monoespaciada del sistema."""
+    """Carga una fuente monoespaciada del sistema o carpeta local."""
     for path in [
+        "assets/fonts/DejaVuSansMono.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
         "/usr/share/fonts/TTF/DejaVuSansMono.ttf",

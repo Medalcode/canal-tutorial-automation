@@ -8,12 +8,13 @@ import asyncio
 import json
 import os
 import uuid
+import sqlite3
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
+from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Depends, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -28,11 +29,96 @@ app = FastAPI(title="Video Generator Pro", version="1.0")
 # Configuración
 OUTPUT_DIR = Path("output")
 SCRIPTS_DIR = Path("scripts")
-JOBS_DIR = Path(".jobs")
+DB_PATH = "database.sqlite"
 
-for directory in [OUTPUT_DIR, SCRIPTS_DIR, JOBS_DIR]:
+for directory in [OUTPUT_DIR, SCRIPTS_DIR]:
     directory.mkdir(exist_ok=True)
 
+# ============ Database (SQLite) ============
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS jobs (
+            job_id TEXT PRIMARY KEY,
+            script_id TEXT,
+            status TEXT,
+            progress INTEGER,
+            message TEXT,
+            created_at TEXT,
+            output_files TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def load_job(job_id: str) -> Optional[Dict]:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM jobs WHERE job_id = ?', (job_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        job_data = dict(row)
+        job_data["output_files"] = json.loads(job_data["output_files"]) if job_data["output_files"] else []
+        return job_data
+    return None
+
+def save_job(job_id: str, data: Dict):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    output_files_str = json.dumps(data.get("output_files", []))
+    cursor.execute('''
+        INSERT INTO jobs (job_id, script_id, status, progress, message, created_at, output_files)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(job_id) DO UPDATE SET
+            status=excluded.status,
+            progress=excluded.progress,
+            message=excluded.message,
+            output_files=excluded.output_files
+    ''', (
+        data.get("job_id"), data.get("script_id"), data.get("status"), 
+        data.get("progress", 0), data.get("message"), data.get("created_at"), 
+        output_files_str
+    ))
+    conn.commit()
+    conn.close()
+
+def list_jobs() -> List[Dict]:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM jobs ORDER BY created_at DESC')
+    rows = cursor.fetchall()
+    conn.close()
+    jobs = []
+    for row in rows:
+        job_data = dict(row)
+        job_data["output_files"] = json.loads(job_data["output_files"]) if job_data["output_files"] else []
+        jobs.append(job_data)
+    return jobs
+
+def delete_job_db(job_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM jobs WHERE job_id = ?', (job_id,))
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
+
+# ============ Middleware / Auth ============
+
+API_SECRET = os.getenv("API_SECRET_TOKEN", "")
+
+def verify_token(x_api_token: Optional[str] = Header(None)):
+    if API_SECRET and x_api_token != API_SECRET:
+        raise HTTPException(status_code=401, detail="Token inválido o no proporcionado")
+    return True
 
 # ============ Models ============
 
@@ -42,11 +128,9 @@ class Scene(BaseModel):
     narration: str
     commands: List[str]
 
-
 class Script(BaseModel):
     topic: str
     scenes: List[Scene]
-
 
 class GenerateScriptRequest(BaseModel):
     topic: str
@@ -58,40 +142,6 @@ class GenerateVideoRequest(BaseModel):
     youtube_description: Optional[str] = None
     youtube_tags: Optional[List[str]] = None
 
-
-class VideoJob(BaseModel):
-    job_id: str
-    status: str
-    script_file: str
-    created_at: str
-    progress: float = 0.0
-    message: str = ""
-
-
-# ============ Database (JSON files) ============
-
-def load_job(job_id: str) -> Dict:
-    job_file = JOBS_DIR / f"{job_id}.json"
-    if job_file.exists():
-        with open(job_file) as f:
-            return json.load(f)
-    return None
-
-
-def save_job(job_id: str, data: Dict):
-    job_file = JOBS_DIR / f"{job_id}.json"
-    with open(job_file, "w") as f:
-        json.dump(data, f, indent=2)
-
-
-def list_jobs() -> List[Dict]:
-    jobs = []
-    for job_file in JOBS_DIR.glob("*.json"):
-        with open(job_file) as f:
-            jobs.append(json.load(f))
-    return sorted(jobs, key=lambda x: x["created_at"], reverse=True)
-
-
 # ============ API Endpoints ============
 
 @app.get("/api/health")
@@ -99,13 +149,14 @@ def health_check():
     """Verificar estado del servidor"""
     return {
         "status": "ok",
-        "version": "1.0",
-        "timestamp": datetime.now().isoformat()
+        "version": "2.0",
+        "timestamp": datetime.now().isoformat(),
+        "database": "sqlite"
     }
 
 
 @app.post("/api/scripts/generate")
-async def generate_script_endpoint(request: GenerateScriptRequest):
+async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = Depends(verify_token)):
     """Generar guión con Gemini IA"""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -115,13 +166,6 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
         )
 
     try:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise HTTPException(
-                status_code=400,
-                detail="GEMINI_API_KEY no configurada. Establécela como variable de entorno."
-            )
-
         prompt = f"""
         Eres un experto creador de tutoriales técnicos para YouTube para niños y principiantes.
         Crea un guion estructurado basándote en las siguientes ideas dadas por el usuario:
@@ -130,7 +174,7 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
         Requisitos:
         - Mínimo {request.num_scenes} secciones
         - Narración clara, motivadora y en español latino
-        - Cada escena DEBE tener código Python REAL y funcional en el campo "commands"
+        - Cada escena DEBE tener código REAL y funcional en el campo "commands"
         - El código debe ser educativo, bien comentado y mostrar conceptos paso a paso
         - Duración: 8-12 minutos
 
@@ -165,7 +209,6 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
             )
         )
 
-        # Limpiar posibles marcadores de bloque de código
         text = response.text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[-1]
@@ -187,8 +230,6 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
             "file": str(script_file)
         }
 
-    except HTTPException:
-        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -196,8 +237,7 @@ async def generate_script_endpoint(request: GenerateScriptRequest):
 
 
 @app.get("/api/scripts/{script_id}")
-def get_script(script_id: str):
-    """Obtener guión completo"""
+def get_script(script_id: str, auth: bool = Depends(verify_token)):
     script_file = SCRIPTS_DIR / f"{script_id}.json"
     if not script_file.exists():
         raise HTTPException(status_code=404, detail="Script no encontrado")
@@ -207,29 +247,27 @@ def get_script(script_id: str):
 
 
 @app.put("/api/scripts/{script_id}")
-def update_script(script_id: str, script: Script):
-    """Actualizar guión"""
+def update_script(script_id: str, script: Script, auth: bool = Depends(verify_token)):
     script_file = SCRIPTS_DIR / f"{script_id}.json"
     if not script_file.exists():
         raise HTTPException(status_code=404, detail="Script no encontrado")
 
-    with open(script_file, "w") as f:
+    with open(script_file, "w", encoding="utf-8") as f:
         json.dump(script.dict(), f, ensure_ascii=False, indent=2)
 
     return {"success": True, "message": "Script actualizado"}
 
 
 @app.get("/api/scripts")
-def list_scripts():
-    """Listar todos los guiones"""
+def list_scripts(auth: bool = Depends(verify_token)):
     scripts = []
     for script_file in SCRIPTS_DIR.glob("*.json"):
         with open(script_file) as f:
             data = json.load(f)
             scripts.append({
                 "id": script_file.stem,
-                "topic": data["topic"],
-                "scenes": len(data["scenes"]),
+                "topic": data.get("topic", "Sin Título"),
+                "scenes": len(data.get("scenes", [])),
                 "created": script_file.stat().st_mtime
             })
     return sorted(scripts, key=lambda x: x["created"], reverse=True)
@@ -239,9 +277,9 @@ def list_scripts():
 async def generate_video(
     script_id: str,
     background_tasks: BackgroundTasks,
-    request: GenerateVideoRequest = None
+    request: GenerateVideoRequest = None,
+    auth: bool = Depends(verify_token)
 ):
-    """Generar video a partir de guión"""
     if request is None:
         request = GenerateVideoRequest()
 
@@ -261,7 +299,6 @@ async def generate_video(
     }
     save_job(job_id, job_data)
 
-    # Ejecutar generación en background
     background_tasks.add_task(
         generate_video_background,
         job_id,
@@ -287,21 +324,18 @@ async def generate_video_background(
     youtube_description: str = None,
     youtube_tags: List[str] = None
 ):
-    """Generar video en background"""
     try:
-        # Copiar script a script.json para que generate_video.py lo use
-        import shutil
-        shutil.copy(script_file, "script.json")
-
         job = load_job(job_id)
         job["status"] = "generating"
         job["progress"] = 10
-        job["message"] = "Iniciando generación..."
+        job["message"] = "Iniciando generación (Python)..."
         save_job(job_id, job)
 
-        # Ejecutar generate_video.py
+        # Ejecutar generate_video.py pasando script via argumento CLI
         process = await asyncio.create_subprocess_exec(
             "python", "generate_video.py",
+            "--script", script_file,
+            "--job-id", job_id,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -313,24 +347,16 @@ async def generate_video_background(
             job["progress"] = 100
             job["message"] = "Video generado exitosamente"
 
-            # Renombrar archivo de output final con un timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            final_video_name = f"tutorial_{timestamp}.mp4"
-            final_video_path = OUTPUT_DIR / final_video_name
-            
-            original_video = OUTPUT_DIR / "video_con_musica.mp4"
-            if original_video.exists():
-                # Reemplazamos el antiguo video si existía por el nuevo nombre
-                original_video.rename(final_video_path)
-
-            # Listar archivos de output actualizados
+            # Actualizar output_files del job especificos de este job_id
             output_files = []
-            for file in OUTPUT_DIR.glob("*"):
-                if file.is_file():
+            for ext, name in [(".mp4", "Video Final"), (".mp3", "Audio Narracion"), (".png", "Miniatura")]:
+                # Buscamos coincidencias con job_id
+                for file in OUTPUT_DIR.glob(f"*{job_id}*{ext}"):
                     output_files.append({
                         "name": file.name,
                         "size": file.stat().st_size,
-                        "url": f"/api/files/{file.name}"
+                        "url": f"/api/files/{file.name}",
+                        "type": name
                     })
 
             job["output_files"] = output_files
@@ -340,7 +366,7 @@ async def generate_video_background(
                 save_job(job_id, job)
                 try:
                     import youtube_uploader
-                    # Llama al script de subida usando el NUEVO archivo renombrado
+                    final_video_path = OUTPUT_DIR / f"video_con_musica_{job_id}.mp4"
                     video_url = youtube_uploader.upload_to_youtube(
                         str(final_video_path), 
                         youtube_title or "Nuevo Tutorial", 
@@ -356,22 +382,22 @@ async def generate_video_background(
         else:
             job["status"] = "failed"
             job["progress"] = 0
-            # Limitar el mensaje de error a las últimas 3 líneas del stderr para no mostrar todo el log de ffmpeg
             stderr_text = stderr.decode(errors='ignore')
             last_lines = [l for l in stderr_text.strip().splitlines() if l.strip()][-3:]
             job["message"] = f"Error en la generación: {'|'.join(last_lines)}"
 
     except Exception as e:
-        job["status"] = "failed"
-        job["message"] = str(e)
+        if job := load_job(job_id):
+            job["status"] = "failed"
+            job["message"] = str(e)
 
     finally:
-        save_job(job_id, job)
+        if job := load_job(job_id):
+            save_job(job_id, job)
 
 
 @app.get("/api/jobs/{job_id}")
-def get_job_status(job_id: str):
-    """Obtener estado de un job"""
+def get_job_status(job_id: str, auth: bool = Depends(verify_token)):
     job = load_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job no encontrado")
@@ -379,14 +405,12 @@ def get_job_status(job_id: str):
 
 
 @app.get("/api/jobs")
-def list_jobs_endpoint():
-    """Listar todos los jobs"""
+def list_jobs_endpoint(auth: bool = Depends(verify_token)):
     return list_jobs()
 
 
 @app.get("/api/files/{filename}")
-def download_file(filename: str):
-    """Descargar archivo de output"""
+def download_file(filename: str, auth: bool = Depends(verify_token)):
     file_path = OUTPUT_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
@@ -399,8 +423,7 @@ def download_file(filename: str):
 
 
 @app.get("/api/files")
-def list_files():
-    """Listar archivos generados"""
+def list_files(auth: bool = Depends(verify_token)):
     files = []
     for file in OUTPUT_DIR.glob("*"):
         if file.is_file():
@@ -414,8 +437,7 @@ def list_files():
 
 
 @app.delete("/api/files/{filename}")
-def delete_file(filename: str):
-    """Eliminar archivo"""
+def delete_file(filename: str, auth: bool = Depends(verify_token)):
     file_path = OUTPUT_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
@@ -425,21 +447,15 @@ def delete_file(filename: str):
 
 
 @app.delete("/api/jobs/{job_id}")
-def delete_job(job_id: str):
-    """Eliminar job"""
-    job_file = JOBS_DIR / f"{job_id}.json"
-    if not job_file.exists():
-        raise HTTPException(status_code=404, detail="Job no encontrado")
-
-    job_file.unlink()
-    return {"success": True, "message": "Job eliminado"}
+def delete_job(job_id: str, auth: bool = Depends(verify_token)):
+    if delete_job_db(job_id):
+        return {"success": True, "message": "Job eliminado"}
+    raise HTTPException(status_code=404, detail="Job no encontrado")
 
 
 # ============ Static Files ============
 
-# Montar archivos estáticos (frontend)
 app.mount("/", StaticFiles(directory="web", html=True), name="static")
-
 
 if __name__ == "__main__":
     import uvicorn

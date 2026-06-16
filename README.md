@@ -40,11 +40,11 @@ Pipeline automatizado para generar tutoriales en video con IA, narración, subt�
 - ✅ Títulos de escenas con fuente profesional
 - ✅ Overlay estilo terminal (código verde)
 
-### 🎬 Video & Composición (Remotion)
-- ✅ Composición en React con Remotion
-- ✅ Pantalla dividida: Avatar animado a la izquierda, código a la derecha
-- ✅ Avatar generado por IA con animación reactiva a la voz
-- ✅ VSCode simulado con Monaco Editor
+### 🎬 Video & Composición (MoviePy)
+- ✅ Composición 100% nativa en Python con MoviePy (sin dependencias Node.js)
+- ✅ Soporte para concurrencia masiva (múltiples renderizados simultáneos)
+- ✅ Base de Datos local (SQLite) integrada para historial de trabajos
+- ✅ Renderizado optimizado de pantalla dividida con avatares e IDE animado
 - ✅ Resolución 1920x1080 Full HD a 30 FPS
 
 ### 🌐 Interfaz Web
@@ -130,14 +130,12 @@ Luego abre [http://localhost:8001](http://localhost:8001) en tu navegador.
 
 ```
 canal-tutorial-automation/
-├── api_server.py          # Backend FastAPI
-├── generate_video.py      # Script principal para procesar video
-├── remotion-renderer/     # Proyecto de Remotion (Video renderer en React)
-│   ├── src/
-│   │   ├── Avatar.tsx     # Avatar reactivo al audio
-│   │   ├── CodeEditor.tsx # Monaco Editor integrado
-│   │   └── Composition.tsx# Composición principal
+├── api_server.py          # Backend FastAPI con Base de Datos SQLite
+├── generate_video.py      # Motor de video optimizado con MoviePy
+├── ide_simulator.py       # Simulación de IDE visual
+├── script_generator_pro.py# Generación de guion con Gemini 2.5
 ├── youtube_uploader.py    # Módulo de subida a YouTube
+├── database.sqlite        # Historial de trabajos y metadatos
 ├── iniciar.sh             # Script de inicio
 ├── requirements.txt       # Dependencias Python
 ├── web/

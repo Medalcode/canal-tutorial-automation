@@ -10,3 +10,4 @@ test_gemini.py
 scripts/
 .jobs/
 *.env
+database.sqlite
