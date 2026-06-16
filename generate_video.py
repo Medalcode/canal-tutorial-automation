@@ -498,6 +498,7 @@ async def main():
         print(f"Aviso al limpiar temporales: {e}")
         
     print("Listo!")
+    os._exit(0)
 
 if __name__ == "__main__":
     asyncio.run(main())
