@@ -175,8 +175,10 @@ async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = 
         Requisitos:
         - Mínimo {request.num_scenes} secciones
         - Narración clara, motivadora y en español latino
-        - Cada escena DEBE tener código REAL y funcional en el campo "commands"
-        - El código debe ser educativo, bien comentado y mostrar conceptos paso a paso
+        - Cada escena DEBE incluir animaciones didácticas escritas con Manim en el campo "manim_code".
+        - El código de Manim debe definir una clase `SceneAnim(Scene)` e importar `from manim import *`. No incluyas comandos de sistema operativo como `!manim`.
+        - Mantén las animaciones simples pero profesionales (ej. diagramas de flujo, revelación de código, fórmulas matemáticas, gráficos básicos).
+        - El campo "commands" puede quedar como un arreglo vacío [] o tener código de consola básico de respaldo.
         - Duración: 8-12 minutos
 
         Responde SOLO con JSON válido (sin ```json):
@@ -192,9 +194,10 @@ async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = 
               "narration": "Texto de narración clara...",
               "language": "python",
               "commands": [
-                "# Importamos las librerías necesarias\nimport os\nfrom pathlib import Path",
-                "def mi_funcion():\n    print('Hola mundo')\n\nmi_funcion()"
-              ]
+                "# Opcional: código para terminal de fallback",
+                "print('Fallback')"
+              ],
+              "manim_code": "from manim import *\\n\\nclass SceneAnim(Scene):\\n    def construct(self):\\n        text = Text('¡Hola a todos!', color=WHITE)\\n        self.play(Write(text))\\n        self.wait(1)"
             }}
           ]
         }}

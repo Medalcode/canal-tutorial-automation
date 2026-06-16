@@ -18,6 +18,7 @@ from moviepy import (
     ImageClip,
     TextClip,
     VideoClip,
+    VideoFileClip,
     concatenate_videoclips,
 )
 from moviepy.video.fx import FadeIn, FadeOut
@@ -172,10 +173,46 @@ def build_scene_clip(scene):
     dur = scene["duration"]
     sid = scene["id"]
     commands = scene.get("commands", [])
+    manim_code = scene.get("manim_code", "")
     title = scene.get("title", sid.upper())
     language = scene.get("language", "python")
 
-    # Determinar si hay código real para mostrar en el IDE
+    # 1. Intentar renderizar con Manim si está disponible
+    manim_mp4 = None
+    if manim_code and "class SceneAnim" in manim_code:
+        # Ajustamos el path de salida esperado
+        py_file = os.path.join(OUTPUT_DIR, f"manim_{sid}.py")
+        with open(py_file, "w", encoding="utf-8") as f:
+            f.write(manim_code)
+        
+        # Manim por defecto guardará en media/videos/manim_{sid}/1080p60/SceneAnim.mp4
+        # Forzamos media_dir a OUTPUT_DIR
+        cmd = [
+            os.path.join(os.environ.get("HOME", ""), ".canal-tutorial-venv", "bin", "manim"),
+            py_file, "SceneAnim", "-qh", "--media_dir", os.path.abspath(OUTPUT_DIR)
+        ]
+        try:
+            print(f"[{sid}] Compilando animacion Manim...")
+            subprocess.run(cmd, check=True, capture_output=True)
+            expected_mp4 = os.path.join(os.path.abspath(OUTPUT_DIR), "videos", f"manim_{sid}", "1080p60", "SceneAnim.mp4")
+            if os.path.exists(expected_mp4):
+                manim_mp4 = expected_mp4
+        except Exception as e:
+            print(f"[{sid}] Error en Manim. Usando fallback.")
+            if hasattr(e, 'stderr') and e.stderr:
+                print(e.stderr.decode(errors="ignore"))
+
+    if manim_mp4:
+        print(f"[{sid}] Usando clip Manim: {manim_mp4}")
+        clip = VideoFileClip(manim_mp4).resized((W, H))
+        if clip.duration < dur:
+            # Congelar el último frame
+            last_frame = clip.get_frame(clip.duration - 0.1)
+            frozen = ImageClip(last_frame).with_duration(dur - clip.duration)
+            clip = concatenate_videoclips([clip, frozen])
+        return clip.with_duration(dur)
+
+    # 2. Fallback: Determinar si hay código real para mostrar en el IDE
     code_keywords = {"def ", "class ", "import ", "for ", "while ", "if ", "==", "->", ":"}
     code_lines = []
     for cmd in commands:
