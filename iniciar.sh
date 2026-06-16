@@ -10,10 +10,17 @@ echo "🎬 Iniciando Video Generator Pro"
 echo "=============================================="
 echo "Cargando la API de Gemini..."
 
-# Activar entorno virtual
-if [ -d "venv" ]; then
+VENV_DIR="$HOME/.canal-tutorial-venv"
+
+# Activar entorno virtual y crear si no existe
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creando entorno virtual en $VENV_DIR e instalando dependencias..."
+    python3 -m venv "$VENV_DIR"
+    source "$VENV_DIR/bin/activate"
+    pip install -r requirements.txt
+else
     echo "Activando entorno virtual..."
-    source venv/bin/activate
+    source "$VENV_DIR/bin/activate"
 fi
 
 # Primera vez: pedir autorización de YouTube antes de arrancar
