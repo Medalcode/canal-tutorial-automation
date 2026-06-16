@@ -447,7 +447,8 @@ async function refreshVideosList() {
                     <button class="btn-secondary" onclick="deleteFile('${file.name}')">🗑️ Eliminar</button>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         document.getElementById('videos-list').innerHTML = html || '<p style="text-align:center;color:var(--text-secondary);">No hay videos aún</p>';
     } catch (err) {
