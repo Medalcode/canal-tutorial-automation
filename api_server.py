@@ -18,8 +18,9 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, D
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from google import genai
-from google.genai import types
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -199,12 +200,12 @@ async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = 
         }}
         """
 
-        client = genai.Client(api_key=api_key)
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
                 response_mime_type="application/json",
             )
         )

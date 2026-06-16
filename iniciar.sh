@@ -21,7 +21,7 @@ if [ ! -f "youtube_token.pkl" ]; then
     echo ""
     echo "📺 Primera vez: Necesitas autorizar tu cuenta de YouTube."
     echo "   Se abrirá tu navegador. Inicia sesión con tu canal y da permisos."
-    python youtube_uploader.py
+    python3 youtube_uploader.py
     echo ""
 fi
 
