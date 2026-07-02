@@ -9,8 +9,9 @@ from PIL import Image, ImageDraw, ImageFont
 from moviepy import VideoClip, ImageClip
 import numpy as np
 
-# ── Dimensiones ──────────────────────────────────────────────────────────────
-W, H = 1920, 1080
+# ── Dimensiones por defecto ───────────────────────────────────────────────────
+DEFAULT_WIDTH  = 1920
+DEFAULT_HEIGHT = 1080
 
 # ── Paleta VS Code Dark+ ─────────────────────────────────────────────────────
 BG         = (30,  30,  30)
@@ -34,11 +35,10 @@ GUTTER_W    = 60
 PADDING_L   = 20
 TAB_HEIGHT  = 35
 FPS         = 30
-CHAR_W      = 13  # ancho aproximado de cada carácter monoespaciado
+CHAR_W      = 13
 
 
 def _load_font(size):
-    """Carga una fuente monoespaciada del sistema o carpeta local."""
     for path in [
         "assets/fonts/DejaVuSansMono.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
@@ -52,7 +52,6 @@ def _load_font(size):
 
 
 def _tokenize(line: str, language: str = "python"):
-    """Convierte una línea de código en tokens coloreados."""
     if language != "python":
         return [(line, SYNTAX["default"])]
 
@@ -109,50 +108,42 @@ def _tokenize(line: str, language: str = "python"):
     return tokens
 
 
-def _render_frame(lines, cur_line, cur_col, blink, filename, language, font):
-    """Renderiza un frame completo del editor como numpy array RGB."""
-    img  = Image.new("RGB", (W, H), BG)
+def _render_frame(lines, cur_line, cur_col, blink, filename, language, font,
+                  width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
+    img  = Image.new("RGB", (width, height), BG)
     draw = ImageDraw.Draw(img)
 
-    # Barra de título
-    draw.rectangle([0, 0, W, 22], fill=TITLE_BG)
-    draw.text((W//2 - 100, 3), f"● {filename} — Video Generator Pro",
+    draw.rectangle([0, 0, width, 22], fill=TITLE_BG)
+    draw.text((width // 2 - 100, 3), f"\u25cf {filename} \u2014 Video Generator Pro",
               fill=(200, 200, 200), font=font)
 
-    # Pestaña activa
-    draw.rectangle([0, 22, W, 22 + TAB_HEIGHT], fill=TITLE_BG)
+    draw.rectangle([0, 22, width, 22 + TAB_HEIGHT], fill=TITLE_BG)
     draw.rectangle([0, 22, 190, 22 + TAB_HEIGHT], fill=TAB_BG)
     draw.text((14, 30), f"  {filename}", fill=(200, 200, 200), font=font)
-    # línea azul indicadora de pestaña activa
     draw.rectangle([0, 22 + TAB_HEIGHT - 2, 190, 22 + TAB_HEIGHT], fill=(0, 122, 204))
 
     y0 = 22 + TAB_HEIGHT + 8
     for idx, line in enumerate(lines):
         y = y0 + idx * LINE_HEIGHT
-        if y > H - LINE_HEIGHT:
+        if y > height - LINE_HEIGHT:
             break
 
-        # Resaltar línea actual
         if idx == cur_line:
-            draw.rectangle([GUTTER_W, y - 2, W, y + LINE_HEIGHT - 2], fill=(40, 40, 40))
+            draw.rectangle([GUTTER_W, y - 2, width, y + LINE_HEIGHT - 2], fill=(40, 40, 40))
 
-        # Número de línea
         draw.text((10, y), str(idx + 1).rjust(3), fill=GUTTER_FG, font=font)
 
-        # Tokens coloreados
         x = GUTTER_W + PADDING_L
         for tok, color in _tokenize(line, language):
             draw.text((x, y), tok, fill=color, font=font)
             x += len(tok) * CHAR_W
 
-        # Cursor parpadeante
         if idx == cur_line and blink:
             cx = GUTTER_W + PADDING_L + cur_col * CHAR_W
             draw.rectangle([cx, y, cx + 2, y + FONT_SIZE], fill=CURSOR_COL)
 
-    # Barra de estado inferior
-    draw.rectangle([0, H - 24, W, H], fill=(0, 122, 204))
-    draw.text((10, H - 20),
+    draw.rectangle([0, height - 24, width, height], fill=(0, 122, 204))
+    draw.text((10, height - 20),
               f"  {language.upper()}   Ln {cur_line+1}, Col {cur_col+1}",
               fill="white", font=font)
 
@@ -165,40 +156,30 @@ def generate_ide_clip(
     filename: str = "main.py",
     language: str = "python",
     chars_per_second: float = 18.0,
+    width=DEFAULT_WIDTH,
+    height=DEFAULT_HEIGHT,
 ):
-    """
-    Genera un clip de MoviePy que simula escribir `code` en el editor.
-
-    Args:
-        code:             código fuente a animar
-        duration:         duración total del clip en segundos
-        filename:         nombre del archivo en la pestaña del editor
-        language:         lenguaje ('python', 'bash', 'javascript', etc.)
-        chars_per_second: velocidad de escritura
-
-    Returns:
-        Un clip de MoviePy listo para componer.
-    """
     font = _load_font(FONT_SIZE)
     total = len(code)
 
     def make_frame(t):
         expected = min(int(t * chars_per_second), total)
         typed = code[:expected]
-        
+
         lines = typed.split("\n")
         cur_line = len(lines) - 1
         cur_col = len(lines[-1])
         blink = int(t * 2) % 2 == 0
-        
-        return _render_frame(lines, cur_line, cur_col, blink, filename, language, font)
+
+        return _render_frame(lines, cur_line, cur_col, blink, filename, language, font,
+                             width=width, height=height)
 
     if total == 0:
-        blank = _render_frame([], 0, 0, False, filename, language, font)
+        blank = _render_frame([], 0, 0, False, filename, language, font,
+                              width=width, height=height)
         return ImageClip(blank, duration=duration)
 
     clip = VideoClip(make_frame, duration=duration)
-    # Es vital setear el FPS aquí si la vamos a concatenar más tarde con otras clips que tienen fps
     clip.fps = FPS
     return clip
 
@@ -227,11 +208,11 @@ def build_rag_index(documents: list) -> dict:
 if __name__ == "__main__":
     docs  = load_documents("data/")
     index = build_rag_index(docs)
-    print(f"✅ {len(docs)} documentos indexados")
-    print(f"📚 {len(index)} palabras únicas en el índice")
+    print(f"\u2705 {len(docs)} documentos indexados")
+    print(f"\U0001f4da {len(index)} palabras \u00fanicas en el \u00edndice")
 '''
     os.makedirs("output", exist_ok=True)
     print("Generando clip IDE de prueba...")
     clip = generate_ide_clip(sample, duration=25.0, filename="rag_pipeline.py")
     clip.write_videofile("output/test_ide.mp4", fps=FPS, logger=None)
-    print("✅ Listo: output/test_ide.mp4")
+    print("\u2705 Listo: output/test_ide.mp4")

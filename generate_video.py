@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import shutil
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -22,6 +23,14 @@ from moviepy import (
     concatenate_videoclips,
 )
 from moviepy.video.fx import FadeIn, FadeOut
+
+from logger import get_logger
+
+log = get_logger("generate_video")
+
+_THIS_DIR = Path(__file__).resolve().parent
+if str(_THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(_THIS_DIR))
 import ide_simulator
 
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
@@ -33,12 +42,9 @@ W, H = 1920, 1080
 BG_COLOR = (20, 22, 28)
 
 def get_font_path(font_name):
-    # Intentar cargar desde assets locales primero
     local_path = os.path.join(ASSETS_DIR, "fonts", font_name)
     if os.path.exists(local_path):
         return local_path
-    
-    # Fallback a las fuentes del sistema
     linux_paths = [
         f"/usr/share/fonts/truetype/dejavu/{font_name}",
         f"/usr/share/fonts/dejavu/{font_name}",
@@ -47,7 +53,7 @@ def get_font_path(font_name):
     for p in linux_paths:
         if os.path.exists(p):
             return p
-    return "Arial" # Fallback generico de MoviePy
+    return "Arial"
 
 FONT_MONO = get_font_path("DejaVuSansMono.ttf")
 FONT = get_font_path("DejaVuSans.ttf")
@@ -102,45 +108,53 @@ def make_terminal_panel(commands, duration):
 
 
 async def generate_audio(scenes, output_audio):
-    full_text = " ".join([s.get("narration", "") for s in scenes])
-    communicate = edge_tts.Communicate(full_text.strip(), VOICE)
-    await communicate.save(output_audio)
-    print(f"Audio generado: {output_audio}")
+    try:
+        full_text = " ".join([s.get("narration", "") for s in scenes])
+        communicate = edge_tts.Communicate(full_text.strip(), VOICE)
+        await communicate.save(output_audio)
+        log.info(f"Audio generado: {output_audio}")
+    except Exception as e:
+        log.error(f"Error generando audio: {e}")
+        raise
 
 
 def transcribe_audio(audio_path):
-    print("Transcribiendo audio con faster-whisper...")
-    model = WhisperModel("tiny", device="cpu", compute_type="int8")
-    segments, info = model.transcribe(audio_path, language="es", word_timestamps=True)
-    print(f"Idioma: {info.language} (prob: {info.language_probability:.2f})")
-    words = []
-    for seg in segments:
-        for w in seg.words:
-            words.append({"word": w.word.strip(), "start": w.start, "end": w.end})
+    try:
+        log.info("Transcribiendo audio con faster-whisper...")
+        model = WhisperModel("tiny", device="cpu", compute_type="int8")
+        segments, info = model.transcribe(audio_path, language="es", word_timestamps=True)
+        log.info(f"Idioma: {info.language} (prob: {info.language_probability:.2f})")
+        words = []
+        for seg in segments:
+            for w in seg.words:
+                words.append({"word": w.word.strip(), "start": w.start, "end": w.end})
 
-    chunks = []
-    cur = {"words": [], "text": "", "start": None, "end": None}
-    for w in words:
-        if not w["word"]:
-            continue
-        if cur["start"] is None:
-            cur["start"] = w["start"]
-        cur["words"].append(w["word"])
-        cur["text"] += w["word"]
-        cur["end"] = w["end"]
-        should_break = (
-            len(cur["words"]) >= 10
-            or (w["end"] - cur["start"]) >= 2.8
-            or w["word"].rstrip()[-1:] in (".", "?", "!")
-        )
-        if should_break:
+        chunks = []
+        cur = {"words": [], "text": "", "start": None, "end": None}
+        for w in words:
+            if not w["word"]:
+                continue
+            if cur["start"] is None:
+                cur["start"] = w["start"]
+            cur["words"].append(w["word"])
+            cur["text"] += w["word"]
+            cur["end"] = w["end"]
+            should_break = (
+                len(cur["words"]) >= 10
+                or (w["end"] - cur["start"]) >= 2.8
+                or w["word"].rstrip()[-1:] in (".", "?", "!")
+            )
+            if should_break:
+                chunks.append(dict(cur))
+                cur = {"words": [], "text": "", "start": None, "end": None}
+        if cur["words"]:
             chunks.append(dict(cur))
-            cur = {"words": [], "text": "", "start": None, "end": None}
-    if cur["words"]:
-        chunks.append(dict(cur))
 
-    print(f"Subtitulos: {len(chunks)} fragmentos, {len(words)} palabras")
-    return chunks
+        log.info(f"Subtitulos: {len(chunks)} fragmentos, {len(words)} palabras")
+        return chunks
+    except Exception as e:
+        log.error(f"Error transcribiendo audio: {e}")
+        raise
 
 
 def make_subtitle_clips(subtitle_chunks, width, height):
@@ -165,7 +179,7 @@ def make_subtitle_clips(subtitle_chunks, width, height):
             text_align="center",
         ).with_position(("center", sub_y)).with_start(start).with_duration(dur)
         clips.append(txt)
-    print(f"Clips de subtitulos: {len(clips)}")
+    log.info(f"Clips de subtitulos: {len(clips)}")
     return clips
 
 
@@ -177,42 +191,36 @@ def build_scene_clip(scene):
     title = scene.get("title", sid.upper())
     language = scene.get("language", "python")
 
-    # 1. Intentar renderizar con Manim si está disponible
     manim_mp4 = None
     if manim_code and "class SceneAnim" in manim_code:
-        # Ajustamos el path de salida esperado
         py_file = os.path.join(OUTPUT_DIR, f"manim_{sid}.py")
         with open(py_file, "w", encoding="utf-8") as f:
             f.write(manim_code)
-        
-        # Manim por defecto guardará en media/videos/manim_{sid}/1080p60/SceneAnim.mp4
-        # Forzamos media_dir a OUTPUT_DIR
+
         cmd = [
             os.path.join(os.environ.get("HOME", ""), ".canal-tutorial-venv", "bin", "manim"),
             py_file, "SceneAnim", "-qh", "--media_dir", os.path.abspath(OUTPUT_DIR)
         ]
         try:
-            print(f"[{sid}] Compilando animacion Manim...")
+            log.info(f"[{sid}] Compilando animacion Manim...")
             subprocess.run(cmd, check=True, capture_output=True)
             expected_mp4 = os.path.join(os.path.abspath(OUTPUT_DIR), "videos", f"manim_{sid}", "1080p60", "SceneAnim.mp4")
             if os.path.exists(expected_mp4):
                 manim_mp4 = expected_mp4
         except Exception as e:
-            print(f"[{sid}] Error en Manim. Usando fallback.")
+            log.warning(f"[{sid}] Error en Manim. Usando fallback: {e}")
             if hasattr(e, 'stderr') and e.stderr:
-                print(e.stderr.decode(errors="ignore"))
+                log.warning(e.stderr.decode(errors="ignore"))
 
     if manim_mp4:
-        print(f"[{sid}] Usando clip Manim: {manim_mp4}")
+        log.info(f"[{sid}] Usando clip Manim: {manim_mp4}")
         clip = VideoFileClip(manim_mp4).resized((W, H))
         if clip.duration < dur:
-            # Congelar el último frame
             last_frame = clip.get_frame(clip.duration - 0.1)
             frozen = ImageClip(last_frame).with_duration(dur - clip.duration)
             clip = concatenate_videoclips([clip, frozen])
         return clip.with_duration(dur)
 
-    # 2. Fallback: Determinar si hay código real para mostrar en el IDE
     code_keywords = {"def ", "class ", "import ", "for ", "while ", "if ", "==", "->", ":"}
     code_lines = []
     for cmd in commands:
@@ -237,7 +245,9 @@ def build_scene_clip(scene):
             filename=filename,
             language=language,
             chars_per_second=cps,
-        ).resized((W, H))
+            width=W,
+            height=H,
+        )
 
         title_clip = (
             TextClip(font=FONT_BOLD, text=title, font_size=36, color="white",
@@ -330,66 +340,69 @@ def make_outro(duration=8):
 
 
 def compose_video(audio_path, subtitle_chunks, scenes, output_video):
-    audio = AudioFileClip(audio_path)
-    total_duration = audio.duration
-    print(f"Duracion audio: {total_duration:.2f}s")
+    try:
+        audio = AudioFileClip(audio_path)
+        total_duration = audio.duration
+        log.info(f"Duracion audio: {total_duration:.2f}s")
 
-    assign_durations(scenes, total_duration * 0.9)
+        assign_durations(scenes, total_duration * 0.9)
 
-    all_clips = []
-    for scene in scenes:
-        all_clips.append(build_scene_clip(scene))
+        all_clips = []
+        for scene in scenes:
+            all_clips.append(build_scene_clip(scene))
 
-    intro = make_intro(6)
-    outro = make_outro(8)
-    all_clips = [intro] + all_clips + [outro]
+        intro = make_intro(6)
+        outro = make_outro(8)
+        all_clips = [intro] + all_clips + [outro]
 
-    print(f"Total clips (intro + {len(all_clips)-2} escenas + outro): {len(all_clips)}")
-    final = concatenate_videoclips(all_clips, method="chain")
+        log.info(f"Total clips (intro + {len(all_clips)-2} escenas + outro): {len(all_clips)}")
+        final = concatenate_videoclips(all_clips, method="chain")
 
-    final_dur = final.duration
-    audio_dur = min(audio.duration, final_dur)
-    audio_trunc = audio.subclipped(0, audio_dur)
+        final_dur = final.duration
+        audio_dur = min(audio.duration, final_dur)
+        audio_trunc = audio.subclipped(0, audio_dur)
 
-    scenes_start = 6.0
-    scenes_end = scenes_start + audio_dur
-    if scenes_end > final_dur:
-        scenes_end = final_dur
-    audio_shifted = audio_trunc.with_start(scenes_start).with_duration(scenes_end - scenes_start)
-    final = final.with_audio(audio_shifted)
+        scenes_start = 6.0
+        scenes_end = scenes_start + audio_dur
+        if scenes_end > final_dur:
+            scenes_end = final_dur
+        audio_shifted = audio_trunc.with_start(scenes_start).with_duration(scenes_end - scenes_start)
+        final = final.with_audio(audio_shifted)
 
-    INTRO_DUR = 6.0
-    for sc in subtitle_chunks:
-        sc["start"] += INTRO_DUR
-        sc["end"] += INTRO_DUR
-    sub_clips = make_subtitle_clips(subtitle_chunks, W, H)
-    final = CompositeVideoClip([final] + sub_clips)
+        INTRO_DUR = 6.0
+        for sc in subtitle_chunks:
+            sc["start"] += INTRO_DUR
+            sc["end"] += INTRO_DUR
+        sub_clips = make_subtitle_clips(subtitle_chunks, W, H)
+        final = CompositeVideoClip([final] + sub_clips)
 
-    print(f"Duracion final de render raw: {final.duration:.2f}s")
-    print("Renderizando video temporal...")
-    # Generamos el video crudo que luego pasará por post-proceso
-    final.write_videofile(
-        output_video,
-        fps=30,
-        codec="libx264",
-        audio_codec="aac",
-        preset="ultrafast",  # rápido aquí, lo optimizaremos en post-proceso
-        bitrate="5000k"
-    )
-    print(f"Video temporal renderizado: {output_video}")
+        log.info(f"Duracion final de render raw: {final.duration:.2f}s")
+        log.info("Renderizando video temporal...")
+        final.write_videofile(
+            output_video,
+            fps=30,
+            codec="libx264",
+            audio_codec="aac",
+            preset="ultrafast",
+            bitrate="5000k"
+        )
+        log.info(f"Video temporal renderizado: {output_video}")
+    except Exception as e:
+        log.error(f"Error componiendo video: {e}")
+        raise
 
 
 def download_fallback_music(music_path):
     import urllib.request
     url = "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Sunshine.mp3"
     try:
-        print("Descargando musica de fondo libre de derechos...")
+        log.info("Descargando musica de fondo libre de derechos...")
         os.makedirs(os.path.dirname(music_path), exist_ok=True)
         urllib.request.urlretrieve(url, music_path)
-        print(f"Musica descargada: {music_path}")
+        log.info(f"Musica descargada: {music_path}")
         return True
     except Exception as e:
-        print(f"No se pudo descargar musica: {e}. Se continuara sin musica.")
+        log.warning(f"No se pudo descargar musica: {e}. Se continuara sin musica.")
         return False
 
 
@@ -400,20 +413,18 @@ def post_process(input_video, final_output, thumb_path):
         download_fallback_music(music_path)
 
     has_music = os.path.exists(music_path)
-    print("Post-proceso: upscaling a 1080p, calidad lenta y añadiendo música si aplica...")
-    
+    log.info("Post-proceso: upscaling a 1080p, calidad lenta y añadiendo musica si aplica...")
+
     cmd = [
         FFMPEG_BIN, "-y",
         "-i", input_video
     ]
-    
+
     if has_music:
         cmd.extend(["-i", music_path])
         cmd.extend([
             "-filter_complex",
-            # Escalado de video
             "[0:v]scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease[vout];"
-            # Mezcla de audio
             "[1:a]volume=0.06,afade=t=in:d=3,afade=t=out:st=0:d=5[music];"
             "[0:a][music]amix=inputs=2:duration=first[aout]",
             "-map", "[vout]", "-map", "[aout]"
@@ -423,7 +434,7 @@ def post_process(input_video, final_output, thumb_path):
             "-vf", "scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease",
             "-map", "0:v", "-map", "0:a"
         ])
-        
+
     cmd.extend([
         "-c:v", "libx264",
         "-preset", "slow",
@@ -442,12 +453,11 @@ def post_process(input_video, final_output, thumb_path):
 
     try:
         subprocess.run(cmd, check=True, capture_output=True)
-        print(f"Video final procesado: {final_output}")
+        log.info(f"Video final procesado: {final_output}")
     except subprocess.CalledProcessError as e:
-        print(f"Error en post_process ffmpeg: {e.stderr.decode()}")
-        raise e
+        log.error(f"Error en post_process ffmpeg: {e.stderr.decode()}")
+        raise
 
-    # Extraer miniatura
     dur_out = subprocess.run([FFMPEG_BIN, "-i", final_output], capture_output=True, text=True)
     dur_line = [l for l in dur_out.stderr.split("\n") if "Duration" in l]
     if dur_line:
@@ -456,21 +466,22 @@ def post_process(input_video, final_output, thumb_path):
             h, m, s = map(float, time_str.split(":"))
             mid = (h * 3600 + m * 60 + s) / 2
             subprocess.run([FFMPEG_BIN, "-y", "-ss", str(mid), "-i", final_output, "-vframes", "1", thumb_path], check=True, capture_output=True)
-            print(f"Thumbnail: {thumb_path}")
+            log.info(f"Thumbnail: {thumb_path}")
         except Exception as e:
-            print(f"No se pudo generar thumbnail: {e}")
+            log.warning(f"No se pudo generar thumbnail: {e}")
+
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--script", required=True, help="Ruta al archivo script.json")
-    parser.add_argument("--job-id", required=True, help="ID único para este trabajo")
+    parser.add_argument("--job-id", required=True, help="ID unico para este trabajo")
     args = parser.parse_args()
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(ASSETS_DIR, exist_ok=True)
 
     if not os.path.exists(args.script):
-        print(f"ERROR: No se encontró el script {args.script}")
+        log.error(f"No se encontro el script {args.script}")
         return
 
     scenes = load_script(args.script)
@@ -480,24 +491,28 @@ async def main():
     final_video_path = os.path.join(OUTPUT_DIR, f"video_con_musica_{args.job_id}.mp4")
     thumb_path = os.path.join(OUTPUT_DIR, f"thumbnail_{args.job_id}.png")
 
-    print("Generando audio con edge-tts...")
-    await generate_audio(scenes, audio_path)
-
-    subtitle_chunks = transcribe_audio(audio_path)
-
-    print("Componiendo video con MoviePy...")
-    compose_video(audio_path, subtitle_chunks, scenes, temp_video_path)
-
-    post_process(temp_video_path, final_video_path, thumb_path)
-    
-    # Limpiar archivos temporales
     try:
-        os.remove(audio_path)
-        os.remove(temp_video_path)
+        log.info("Generando audio con edge-tts...")
+        await generate_audio(scenes, audio_path)
+
+        subtitle_chunks = transcribe_audio(audio_path)
+
+        log.info("Componiendo video con MoviePy...")
+        compose_video(audio_path, subtitle_chunks, scenes, temp_video_path)
+
+        post_process(temp_video_path, final_video_path, thumb_path)
+
+        try:
+            os.remove(audio_path)
+            os.remove(temp_video_path)
+        except Exception as e:
+            log.warning(f"Aviso al limpiar temporales: {e}")
+
+        log.info("Proceso completado exitosamente")
     except Exception as e:
-        print(f"Aviso al limpiar temporales: {e}")
-        
-    print("Listo!")
+        log.error(f"Error en el pipeline principal: {e}")
+        raise
+
     os._exit(0)
 
 if __name__ == "__main__":

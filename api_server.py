@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""
-FastAPI Backend - Administrador de Videos
-Endpoints REST para generación y gestión de videos
-"""
 
 import asyncio
 import json
 import os
+import sys
 import uuid
 import sqlite3
 import subprocess
@@ -14,26 +11,35 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Depends, Header
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+from logger import get_logger
+
+log = get_logger("api_server")
+
 load_dotenv()
 
 app = FastAPI(title="Video Generator Pro", version="1.0")
 
-# Configuración
 OUTPUT_DIR = Path("output")
 SCRIPTS_DIR = Path("scripts")
 DB_PATH = "database.sqlite"
 
 for directory in [OUTPUT_DIR, SCRIPTS_DIR]:
     directory.mkdir(exist_ok=True)
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    log.warning("GEMINI_API_KEY no configurada. El endpoint /api/scripts/generate fallara.")
+
+API_SECRET = os.getenv("API_SECRET_TOKEN", "")
+if not API_SECRET:
+    log.info("API_SECRET_TOKEN no configurado. La API no requiere autenticacion.")
 
 # ============ Database (SQLite) ============
 
@@ -53,6 +59,7 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+    log.info("Base de datos inicializada")
 
 init_db()
 
@@ -114,11 +121,9 @@ def delete_job_db(job_id: str):
 
 # ============ Middleware / Auth ============
 
-API_SECRET = os.getenv("API_SECRET_TOKEN", "")
-
 def verify_token(x_api_token: Optional[str] = Header(None)):
     if API_SECRET and x_api_token != API_SECRET:
-        raise HTTPException(status_code=401, detail="Token inválido o no proporcionado")
+        raise HTTPException(status_code=401, detail="Token invalido o no proporcionado")
     return True
 
 # ============ Models ============
@@ -147,7 +152,6 @@ class GenerateVideoRequest(BaseModel):
 
 @app.get("/api/health")
 def health_check():
-    """Verificar estado del servidor"""
     return {
         "status": "ok",
         "version": "2.0",
@@ -158,49 +162,48 @@ def health_check():
 
 @app.post("/api/scripts/generate")
 async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = Depends(verify_token)):
-    """Generar guión con Gemini IA"""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=400,
-            detail="GEMINI_API_KEY no configurada. Establécela como variable de entorno."
+            detail="GEMINI_API_KEY no configurada. Establecela como variable de entorno."
         )
 
     try:
         prompt = f"""
-        Eres un experto creador de tutoriales técnicos para YouTube para niños y principiantes.
-        Crea un guion estructurado basándote en las siguientes ideas dadas por el usuario:
+        Eres un experto creador de tutoriales tecnicos para YouTube para ninos y principiantes.
+        Crea un guion estructurado basandote en las siguientes ideas dadas por el usuario:
         "{request.topic}"
 
         Requisitos:
-        - Mínimo {request.num_scenes} secciones
-        - Narración clara, motivadora y en español latino
-        - Cada escena DEBE incluir animaciones didácticas escritas con Manim en el campo "manim_code".
-        - El código de Manim debe definir una clase `SceneAnim(Scene)` e importar `from manim import *`. No incluyas comandos de sistema operativo como `!manim`.
-        - Mantén las animaciones simples pero profesionales (ej. diagramas de flujo, revelación de código, fórmulas matemáticas, gráficos básicos).
-        - El campo "commands" puede quedar como un arreglo vacío [] o tener código de consola básico de respaldo.
-        - Duración: 8-12 minutos
+        - Minimo {request.num_scenes} secciones
+        - Narracion clara, motivadora y en espanol latino
+        - Cada escena DEBE incluir animaciones didacticas escritas con Manim en el campo "manim_code".
+        - El codigo de Manim debe definir una clase `SceneAnim(Scene)` e importar `from manim import *`. No incluyas comandos de sistema operativo como `!manim`.
+        - Manten las animaciones simples pero profesionales (ej. diagramas de flujo, revelacion de codigo, formulas matematicas, graficos basicos).
+        - El campo "commands" puede quedar como un arreglo vacio [] o tener codigo de consola basico de respaldo.
+        - Duracion: 8-12 minutos
 
-        Responde SOLO con JSON válido (sin ```json):
-        {{
+        Responde SOLO con JSON valido (sin ```json):
+        {{{{
           "topic": "{request.topic}",
-          "youtube_title": "Título llamativo para YouTube...",
-          "youtube_description": "Descripción optimizada para SEO...",
+          "youtube_title": "Titulo llamativo para YouTube...",
+          "youtube_description": "Descripcion optimizada para SEO...",
           "youtube_tags": ["tag1", "tag2", "tag3"],
           "scenes": [
-            {{
+            {{{{
               "id": "intro",
-              "title": "Introducción",
-              "narration": "Texto de narración clara...",
+              "title": "Introduccion",
+              "narration": "Texto de narracion clara...",
               "language": "python",
               "commands": [
-                "# Opcional: código para terminal de fallback",
+                "# Opcional: codigo para terminal de fallback",
                 "print('Fallback')"
               ],
               "manim_code": "from manim import *\\n\\nclass SceneAnim(Scene):\\n    def construct(self):\\n        text = Text('¡Hola a todos!', color=WHITE)\\n        self.play(Write(text))\\n        self.wait(1)"
-            }}
+            }}}}
           ]
-        }}
+        }}}}
         """
 
         genai.configure(api_key=api_key)
@@ -226,6 +229,8 @@ async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = 
         with open(script_file, "w", encoding="utf-8") as f:
             json.dump(script_data, f, ensure_ascii=False, indent=2)
 
+        log.info(f"Script generado: {script_id} - tema: {request.topic}")
+
         return {
             "success": True,
             "script_id": script_id,
@@ -235,8 +240,7 @@ async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = 
         }
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        log.exception(f"Error generando script: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -259,6 +263,7 @@ def update_script(script_id: str, script: Script, auth: bool = Depends(verify_to
     with open(script_file, "w", encoding="utf-8") as f:
         json.dump(script.dict(), f, ensure_ascii=False, indent=2)
 
+    log.info(f"Script actualizado: {script_id}")
     return {"success": True, "message": "Script actualizado"}
 
 
@@ -270,7 +275,7 @@ def list_scripts(auth: bool = Depends(verify_token)):
             data = json.load(f)
             scripts.append({
                 "id": script_file.stem,
-                "topic": data.get("topic", "Sin Título"),
+                "topic": data.get("topic", "Sin Titulo"),
                 "scenes": len(data.get("scenes", [])),
                 "created": script_file.stat().st_mtime
             })
@@ -313,10 +318,11 @@ async def generate_video(
         request.youtube_tags
     )
 
+    log.info(f"Job encolado: {job_id} para script {script_id}")
     return {
         "job_id": job_id,
         "status": "queued",
-        "message": "Video enviado a cola de generación"
+        "message": "Video enviado a cola de generacion"
     }
 
 
@@ -328,16 +334,19 @@ async def generate_video_background(
     youtube_description: str = None,
     youtube_tags: List[str] = None
 ):
+    job = None
     try:
         job = load_job(job_id)
         job["status"] = "generating"
         job["progress"] = 10
-        job["message"] = "Iniciando generación (Python)..."
+        job["message"] = "Iniciando generacion..."
         save_job(job_id, job)
 
-        # Ejecutar generate_video.py pasando script via argumento CLI
+        python_exe = sys.executable or "python"
+        log.info(f"Ejecutando: {python_exe} generate_video.py --script {script_file} --job-id {job_id}")
+
         process = await asyncio.create_subprocess_exec(
-            "python", "generate_video.py",
+            python_exe, "generate_video.py",
             "--script", script_file,
             "--job-id", job_id,
             stdout=asyncio.subprocess.PIPE,
@@ -351,10 +360,8 @@ async def generate_video_background(
             job["progress"] = 100
             job["message"] = "Video generado exitosamente"
 
-            # Actualizar output_files del job especificos de este job_id
             output_files = []
             for ext, name in [(".mp4", "Video Final"), (".mp3", "Audio Narracion"), (".png", "Miniatura")]:
-                # Buscamos coincidencias con job_id
                 for file in OUTPUT_DIR.glob(f"*{job_id}*{ext}"):
                     output_files.append({
                         "name": file.name,
@@ -364,6 +371,7 @@ async def generate_video_background(
                     })
 
             job["output_files"] = output_files
+            log.info(f"Job {job_id} completado. Archivos: {[f['name'] for f in output_files]}")
 
             if upload_to_youtube:
                 job["message"] = "Video generado. Subiendo a YouTube..."
@@ -374,13 +382,15 @@ async def generate_video_background(
                     video_url = youtube_uploader.upload_to_youtube(
                         str(final_video_path), 
                         youtube_title or "Nuevo Tutorial", 
-                        youtube_description or "Tutorial generado automáticamente.", 
+                        youtube_description or "Tutorial generado automaticamente.", 
                         youtube_tags or []
                     )
-                    job["message"] = f"¡Subido a YouTube exitosamente! URL: {video_url}"
+                    job["message"] = f"Subido a YouTube exitosamente! URL: {video_url}"
+                    log.info(f"Video {job_id} subido a YouTube: {video_url}")
                 except Exception as e:
                     job["status"] = "failed"
-                    job["message"] = f"Video creado, pero falló la subida a YouTube: {str(e)}"
+                    job["message"] = f"Video creado, pero fallo la subida a YouTube: {str(e)}"
+                    log.error(f"Error subiendo video {job_id} a YouTube: {e}")
                     save_job(job_id, job)
                     return
         else:
@@ -388,15 +398,17 @@ async def generate_video_background(
             job["progress"] = 0
             stderr_text = stderr.decode(errors='ignore')
             last_lines = [l for l in stderr_text.strip().splitlines() if l.strip()][-3:]
-            job["message"] = f"Error en la generación: {'|'.join(last_lines)}"
+            job["message"] = f"Error en la generacion: {'|'.join(last_lines)}"
+            log.error(f"Job {job_id} fallo. stderr: {stderr_text[:500]}")
 
     except Exception as e:
-        if job := load_job(job_id):
+        log.exception(f"Error en generate_video_background para job {job_id}: {e}")
+        if job:
             job["status"] = "failed"
             job["message"] = str(e)
 
     finally:
-        if job := load_job(job_id):
+        if job:
             save_job(job_id, job)
 
 
@@ -447,23 +459,21 @@ def delete_file(filename: str, auth: bool = Depends(verify_token)):
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
     file_path.unlink()
+    log.info(f"Archivo eliminado: {filename}")
     return {"success": True, "message": f"{filename} eliminado"}
 
 
 @app.delete("/api/jobs/{job_id}")
 def delete_job(job_id: str, auth: bool = Depends(verify_token)):
     if delete_job_db(job_id):
+        log.info(f"Job eliminado: {job_id}")
         return {"success": True, "message": "Job eliminado"}
     raise HTTPException(status_code=404, detail="Job no encontrado")
 
-
-# ============ Static Files ============
 
 app.mount("/", StaticFiles(directory="web", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Iniciando Video Generator Pro...")
-    print("📊 API disponible en: http://localhost:8001/api")
-    print("🌐 Frontend en: http://localhost:8001")
+    log.info("Iniciando Video Generator Pro...")
     uvicorn.run("api_server:app", host="0.0.0.0", port=8001, reload=True)

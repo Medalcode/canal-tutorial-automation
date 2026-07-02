@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/run/media/medalcode/Externo_Portatil/Github/canal-tutorial-automation/generate_video.py", line 9, in <module>
-    import edge_tts
-ModuleNotFoundError: No module named 'edge_tts'

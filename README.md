@@ -8,6 +8,7 @@ Pipeline automatizado para generar tutoriales en video con IA, narración, subt�
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
+[![Python](https://img.shields.io/badge/Logging-Rotating%20File-blue.svg)]()
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black.svg?logo=vercel)](https://canal-tutorial-automation.vercel.app)
 
 ---
@@ -77,7 +78,15 @@ Crea un archivo `.env` en la raíz del proyecto:
 
 ```env
 GEMINI_API_KEY=tu_clave_de_google_ai_studio
+API_SECRET_TOKEN=token_opcional_para_api
+LOG_LEVEL=INFO
 ```
+
+| Variable | Obligatorio | Descripción |
+|----------|-------------|-------------|
+| `GEMINI_API_KEY` | ✅ Sí | Clave de Google AI Studio para generar guiones |
+| `API_SECRET_TOKEN` | ❌ No | Token para autenticar llamadas a la API REST |
+| `LOG_LEVEL` | ❌ No | Nivel de logging: `DEBUG`, `INFO`, `WARNING`, `ERROR` (default: `INFO`) |
 
 Obtén tu clave gratis en: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 
@@ -133,6 +142,7 @@ canal-tutorial-automation/
 ├── api_server.py          # Backend FastAPI con Base de Datos SQLite
 ├── generate_video.py      # Motor de video optimizado con MoviePy
 ├── ide_simulator.py       # Simulación de IDE visual
+├── logger.py              # Logging estructurado con rotación
 ├── script_generator_pro.py# Generación de guion con Gemini 2.5
 ├── youtube_uploader.py    # Módulo de subida a YouTube
 ├── database.sqlite        # Historial de trabajos y metadatos
@@ -143,6 +153,7 @@ canal-tutorial-automation/
 │   └── app.js             # Lógica del frontend
 ├── assets/                # Fuentes y música de fondo
 ├── output/                # Videos generados (ignorado por git)
+├── logs/                  # Logs rotativos (ignorado por git)
 ├── .env                   # Claves secretas (NO subir a GitHub)
 └── client_secret.json     # Credenciales OAuth (NO subir a GitHub)
 ```
@@ -156,6 +167,8 @@ Los siguientes archivos están en `.gitignore` y **nunca** se suben a GitHub:
 - `client_secret.json` — Credenciales OAuth de Google
 - `youtube_token.pkl` — Token de acceso de YouTube
 - `output/` — Videos generados
+- `logs/` — Logs rotativos del sistema
+- `database.sqlite` — Base de datos local
 
 ---
 

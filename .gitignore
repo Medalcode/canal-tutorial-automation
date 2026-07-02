@@ -11,3 +11,4 @@ scripts/
 .jobs/
 *.env
 database.sqlite
+logs/
