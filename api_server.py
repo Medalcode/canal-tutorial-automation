@@ -40,82 +40,9 @@ if not API_SECRET:
     log.info("API_SECRET_TOKEN no configurado. La API no requiere autenticacion.")
 
 # ============ Database (SQLite) ============
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS jobs (
-            job_id TEXT PRIMARY KEY,
-            script_id TEXT,
-            status TEXT,
-            progress INTEGER,
-            message TEXT,
-            created_at TEXT,
-            output_files TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-    log.info("Base de datos inicializada")
+from database import init_db, load_job, save_job, list_jobs, delete_job_db
 
 init_db()
-
-def load_job(job_id: str) -> dict | None:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM jobs WHERE job_id = ?', (job_id,))
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        job_data = dict(row)
-        job_data["output_files"] = json.loads(job_data["output_files"]) if job_data["output_files"] else []
-        return job_data
-    return None
-
-def save_job(_job_id: str, data: dict):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    output_files_str = json.dumps(data.get("output_files", []))
-    cursor.execute('''
-        INSERT INTO jobs (job_id, script_id, status, progress, message, created_at, output_files)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(job_id) DO UPDATE SET
-            status=excluded.status,
-            progress=excluded.progress,
-            message=excluded.message,
-            output_files=excluded.output_files
-    ''', (
-        data.get("job_id"), data.get("script_id"), data.get("status"),
-        data.get("progress", 0), data.get("message"), data.get("created_at"),
-        output_files_str
-    ))
-    conn.commit()
-    conn.close()
-
-def list_jobs() -> list[dict]:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM jobs ORDER BY created_at DESC')
-    rows = cursor.fetchall()
-    conn.close()
-    jobs = []
-    for row in rows:
-        job_data = dict(row)
-        job_data["output_files"] = json.loads(job_data["output_files"]) if job_data["output_files"] else []
-        jobs.append(job_data)
-    return jobs
-
-def delete_job_db(job_id: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM jobs WHERE job_id = ?', (job_id,))
-    deleted = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return deleted
 
 # ============ Middleware / Auth ============
 
@@ -259,7 +186,7 @@ def update_script(script_id: str, script: Script, _auth: bool = Depends(verify_t
         raise HTTPException(status_code=404, detail="Script no encontrado")
 
     with open(script_file, "w", encoding="utf-8") as f:
-        json.dump(script.dict(), f, ensure_ascii=False, indent=2)
+        json.dump(script.model_dump(), f, ensure_ascii=False, indent=2)
 
     log.info(f"Script actualizado: {script_id}")
     return {"success": True, "message": "Script actualizado"}

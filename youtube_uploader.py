@@ -1,5 +1,8 @@
 import os
 import pickle
+from logger import get_logger
+
+log = get_logger("youtube_uploader")
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -57,7 +60,7 @@ def upload_to_youtube(video_file, title, description, tags, category_id="27"):
     Sube un video a YouTube usando OAuth 2.0 y la YouTube Data API v3.
     Devuelve la URL del video subido.
     """
-    print("Autenticando con YouTube...")
+    log.info("Autenticando con YouTube...")
     credentials = get_credentials()
 
     youtube = googleapiclient.discovery.build(
@@ -77,7 +80,7 @@ def upload_to_youtube(video_file, title, description, tags, category_id="27"):
         }
     }
 
-    print(f"Subiendo a YouTube: {title}")
+    log.info(f"Subiendo a YouTube: {title}")
 
     media_file = MediaFileUpload(video_file, chunksize=-1, resumable=True)
 
@@ -90,7 +93,7 @@ def upload_to_youtube(video_file, title, description, tags, category_id="27"):
     response = request.execute()
     video_id = response.get("id")
     url = f"https://youtu.be/{video_id}"
-    print(f"✅ Subida completada: {url}")
+    log.info(f"✅ Subida completada: {url}")
     return url
 
 
@@ -99,12 +102,12 @@ def authorize_youtube():
     Función auxiliar para pre-autorizar YouTube antes de generar el primer video.
     Llama a esta función desde la línea de comandos para generar el token.
     """
-    print("Iniciando proceso de autorización con YouTube...")
+    log.info("Iniciando proceso de autorización con YouTube...")
     credentials = get_credentials()
     if credentials and credentials.valid:
-        print("✅ Autorización exitosa. Ya puedes subir videos a YouTube desde la app.")
+        log.info("✅ Autorización exitosa. Ya puedes subir videos a YouTube desde la app.")
     else:
-        print("❌ No se pudo completar la autorización.")
+        log.error("❌ No se pudo completar la autorización.")
 
 
 if __name__ == "__main__":

@@ -189,6 +189,14 @@ Los siguientes archivos están en `.gitignore` y **nunca** se suben a GitHub:
 
 ---
 
+## 🛠️ Mejoras y Refactorizaciones (Julio 2026)
+
+- **Separación de Responsabilidades:** Se extrajo la lógica de base de datos de `api_server.py` hacia un nuevo módulo `database.py` para evitar acoplamiento y sobreingeniería.
+- **Logging Consistente:** Se migró `youtube_uploader.py` de `print` a la configuración central de `logger.py`.
+- **Pruebas Automatizadas (TDD):** Se implementaron tests (pytest) con cobertura para operaciones de base de datos, API endpoints e interacción con YouTube (mockeada).
+
+---
+
 ## 📄 Licencia
 
 MIT License — libre para uso personal y comercial.
