@@ -2,27 +2,23 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import subprocess
-import shutil
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import edge_tts
-from faster_whisper import WhisperModel
 import imageio_ffmpeg
+from faster_whisper import WhisperModel
 from moviepy import (
     AudioFileClip,
     ColorClip,
     CompositeVideoClip,
     ImageClip,
     TextClip,
-    VideoClip,
     VideoFileClip,
     concatenate_videoclips,
 )
-from moviepy.video.fx import FadeIn, FadeOut
+from moviepy.video.fx import FadeIn
 
 from logger import get_logger
 
@@ -31,7 +27,7 @@ log = get_logger("generate_video")
 _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
-import ide_simulator
+import ide_simulator  # noqa: E402
 
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -60,7 +56,7 @@ FONT = get_font_path("DejaVuSans.ttf")
 FONT_BOLD = get_font_path("DejaVuSans-Bold.ttf")
 
 def load_script(json_path: str):
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
     scenes = data.get("scenes", [])
     for s in scenes:
@@ -157,7 +153,7 @@ def transcribe_audio(audio_path):
         raise
 
 
-def make_subtitle_clips(subtitle_chunks, width, height):
+def make_subtitle_clips(subtitle_chunks, _width, _height):
     clips = []
     panel_top = H - 560
     sub_y = panel_top - 60
@@ -369,10 +365,10 @@ def compose_video(audio_path, subtitle_chunks, scenes, output_video):
         audio_shifted = audio_trunc.with_start(scenes_start).with_duration(scenes_end - scenes_start)
         final = final.with_audio(audio_shifted)
 
-        INTRO_DUR = 6.0
+        intro_dur = 6.0
         for sc in subtitle_chunks:
-            sc["start"] += INTRO_DUR
-            sc["end"] += INTRO_DUR
+            sc["start"] += intro_dur
+            sc["end"] += intro_dur
         sub_clips = make_subtitle_clips(subtitle_chunks, W, H)
         final = CompositeVideoClip([final] + sub_clips)
 
@@ -459,7 +455,7 @@ def post_process(input_video, final_output, thumb_path):
         raise
 
     dur_out = subprocess.run([FFMPEG_BIN, "-i", final_output], capture_output=True, text=True)
-    dur_line = [l for l in dur_out.stderr.split("\n") if "Duration" in l]
+    dur_line = [line for line in dur_out.stderr.split("\n") if "Duration" in line]
     if dur_line:
         try:
             time_str = dur_line[0].split()[1].strip(",")

@@ -179,6 +179,14 @@ Los siguientes archivos están en `.gitignore` y **nunca** se suben a GitHub:
 - Cuenta de Google AI Studio (Gemini API key gratuita)
 - Cuenta de YouTube con canal propio
 
+## Knowledge Graph
+
+`graphify-out/graph.json` contiene **64 nodos y 63 aristas** del AST del proyecto, permitiendo a agentes AI comprender la arquitectura sin escanear archivos.
+
+## Skills
+
+- **tdd** (skills.sh) — patrones de testing para mantener y expandir la cobertura
+
 ---
 
 ## 📄 Licencia

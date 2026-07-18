@@ -4,12 +4,11 @@ Pipeline completo: genera guión + video automáticamente
 Uso: python run_tutorial.py --topic "FastAPI para principiantes"
 """
 
+import argparse
+import os
 import subprocess
 import sys
-import os
-import argparse
 import uuid
-from pathlib import Path
 
 
 def run_command(cmd: list, description: str):
@@ -65,7 +64,7 @@ def main():
                 print("\n📋 Escenas generadas:")
                 for i, scene in enumerate(script["scenes"], 1):
                     print(f"   {i}. {scene['title']} ({scene['id']})")
-        except:
+        except Exception:
             pass
 
     if not os.path.exists(args.output):
@@ -73,7 +72,7 @@ def main():
         sys.exit(1)
 
     job_id = str(uuid.uuid4())[:12]
-    
+
     if not run_command(
         [sys.executable, "generate_video.py", "--script", args.output, "--job-id", job_id],
         "Generando video (esto puede tardar 30-60 min)"

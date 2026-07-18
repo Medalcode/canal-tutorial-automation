@@ -1,12 +1,11 @@
 import os
-import json
 import pickle
-from pathlib import Path
+
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
-from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
+from googleapiclient.http import MediaFileUpload
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 TOKEN_FILE = "youtube_token.pkl"
@@ -58,7 +57,7 @@ def upload_to_youtube(video_file, title, description, tags, category_id="27"):
     Sube un video a YouTube usando OAuth 2.0 y la YouTube Data API v3.
     Devuelve la URL del video subido.
     """
-    print(f"Autenticando con YouTube...")
+    print("Autenticando con YouTube...")
     credentials = get_credentials()
 
     youtube = googleapiclient.discovery.build(

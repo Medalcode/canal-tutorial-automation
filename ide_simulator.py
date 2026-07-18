@@ -5,9 +5,10 @@ con código que se escribe letra por letra, cursor parpadeante y resaltado de si
 """
 
 import os
-from PIL import Image, ImageDraw, ImageFont
-from moviepy import VideoClip, ImageClip
+
 import numpy as np
+from moviepy import ImageClip, VideoClip
+from PIL import Image, ImageDraw, ImageFont
 
 # ── Dimensiones por defecto ───────────────────────────────────────────────────
 DEFAULT_WIDTH  = 1920
@@ -55,12 +56,12 @@ def _tokenize(line: str, language: str = "python"):
     if language != "python":
         return [(line, SYNTAX["default"])]
 
-    KW = {"def","class","import","from","return","if","else","elif",
+    kw = {"def","class","import","from","return","if","else","elif",
           "for","while","try","except","finally","with","as","in",
           "not","and","or","is","None","True","False","pass","break",
           "continue","raise","yield","lambda","global","nonlocal","del",
           "async","await"}
-    BT = {"print","len","range","type","list","dict","set","tuple",
+    bt = {"print","len","range","type","list","dict","set","tuple",
           "int","str","float","bool","input","open","enumerate","zip",
           "map","filter","sorted","reversed","isinstance","hasattr",
           "getattr","setattr","super","self"}
@@ -79,7 +80,8 @@ def _tokenize(line: str, language: str = "python"):
         elif line[i] in ('"', "'"):
             q, j = line[i], i + 1
             while j < len(line) and line[j] != q:
-                if line[j] == "\\": j += 1
+                if line[j] == "\\":
+                    j += 1
                 j += 1
             tokens.append((line[i:j+1], SYNTAX["string"]))
             i = j + 1
@@ -91,8 +93,8 @@ def _tokenize(line: str, language: str = "python"):
             while j < len(line) and (line[j].isalnum() or line[j] == "_"):
                 j += 1
             w = line[i:j]
-            color = SYNTAX["keyword"] if w in KW else \
-                    SYNTAX["builtin"] if w in BT else \
+            color = SYNTAX["keyword"] if w in kw else \
+                    SYNTAX["builtin"] if w in bt else \
                     SYNTAX["default"]
             tokens.append((w, color))
             i = j

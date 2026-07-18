@@ -3,20 +3,18 @@
 import asyncio
 import json
 import os
+import sqlite3
 import sys
 import uuid
-import sqlite3
-import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
 import google.generativeai as genai
 from dotenv import load_dotenv
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from logger import get_logger
 
@@ -63,7 +61,7 @@ def init_db():
 
 init_db()
 
-def load_job(job_id: str) -> Optional[Dict]:
+def load_job(job_id: str) -> dict | None:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -76,7 +74,7 @@ def load_job(job_id: str) -> Optional[Dict]:
         return job_data
     return None
 
-def save_job(job_id: str, data: Dict):
+def save_job(_job_id: str, data: dict):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     output_files_str = json.dumps(data.get("output_files", []))
@@ -89,14 +87,14 @@ def save_job(job_id: str, data: Dict):
             message=excluded.message,
             output_files=excluded.output_files
     ''', (
-        data.get("job_id"), data.get("script_id"), data.get("status"), 
-        data.get("progress", 0), data.get("message"), data.get("created_at"), 
+        data.get("job_id"), data.get("script_id"), data.get("status"),
+        data.get("progress", 0), data.get("message"), data.get("created_at"),
         output_files_str
     ))
     conn.commit()
     conn.close()
 
-def list_jobs() -> List[Dict]:
+def list_jobs() -> list[dict]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -121,7 +119,7 @@ def delete_job_db(job_id: str):
 
 # ============ Middleware / Auth ============
 
-def verify_token(x_api_token: Optional[str] = Header(None)):
+def verify_token(x_api_token: str | None = Header(None)):
     if API_SECRET and x_api_token != API_SECRET:
         raise HTTPException(status_code=401, detail="Token invalido o no proporcionado")
     return True
@@ -132,11 +130,11 @@ class Scene(BaseModel):
     id: str
     title: str
     narration: str
-    commands: List[str]
+    commands: list[str]
 
 class Script(BaseModel):
     topic: str
-    scenes: List[Scene]
+    scenes: list[Scene]
 
 class GenerateScriptRequest(BaseModel):
     topic: str
@@ -144,9 +142,9 @@ class GenerateScriptRequest(BaseModel):
 
 class GenerateVideoRequest(BaseModel):
     upload_to_youtube: bool = False
-    youtube_title: Optional[str] = None
-    youtube_description: Optional[str] = None
-    youtube_tags: Optional[List[str]] = None
+    youtube_title: str | None = None
+    youtube_description: str | None = None
+    youtube_tags: list[str] | None = None
 
 # ============ API Endpoints ============
 
@@ -161,7 +159,7 @@ def health_check():
 
 
 @app.post("/api/scripts/generate")
-async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = Depends(verify_token)):
+async def generate_script_endpoint(request: GenerateScriptRequest, _auth: bool = Depends(verify_token)):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
@@ -241,11 +239,11 @@ async def generate_script_endpoint(request: GenerateScriptRequest, auth: bool = 
 
     except Exception as e:
         log.exception(f"Error generando script: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/scripts/{script_id}")
-def get_script(script_id: str, auth: bool = Depends(verify_token)):
+def get_script(script_id: str, _auth: bool = Depends(verify_token)):
     script_file = SCRIPTS_DIR / f"{script_id}.json"
     if not script_file.exists():
         raise HTTPException(status_code=404, detail="Script no encontrado")
@@ -255,7 +253,7 @@ def get_script(script_id: str, auth: bool = Depends(verify_token)):
 
 
 @app.put("/api/scripts/{script_id}")
-def update_script(script_id: str, script: Script, auth: bool = Depends(verify_token)):
+def update_script(script_id: str, script: Script, _auth: bool = Depends(verify_token)):
     script_file = SCRIPTS_DIR / f"{script_id}.json"
     if not script_file.exists():
         raise HTTPException(status_code=404, detail="Script no encontrado")
@@ -268,7 +266,7 @@ def update_script(script_id: str, script: Script, auth: bool = Depends(verify_to
 
 
 @app.get("/api/scripts")
-def list_scripts(auth: bool = Depends(verify_token)):
+def list_scripts(_auth: bool = Depends(verify_token)):
     scripts = []
     for script_file in SCRIPTS_DIR.glob("*.json"):
         with open(script_file) as f:
@@ -287,7 +285,7 @@ async def generate_video(
     script_id: str,
     background_tasks: BackgroundTasks,
     request: GenerateVideoRequest = None,
-    auth: bool = Depends(verify_token)
+    _auth: bool = Depends(verify_token)
 ):
     if request is None:
         request = GenerateVideoRequest()
@@ -327,12 +325,12 @@ async def generate_video(
 
 
 async def generate_video_background(
-    job_id: str, 
-    script_file: str, 
+    job_id: str,
+    script_file: str,
     upload_to_youtube: bool = False,
     youtube_title: str = None,
     youtube_description: str = None,
-    youtube_tags: List[str] = None
+    youtube_tags: list[str] = None
 ):
     job = None
     try:
@@ -380,9 +378,9 @@ async def generate_video_background(
                     import youtube_uploader
                     final_video_path = OUTPUT_DIR / f"video_con_musica_{job_id}.mp4"
                     video_url = youtube_uploader.upload_to_youtube(
-                        str(final_video_path), 
-                        youtube_title or "Nuevo Tutorial", 
-                        youtube_description or "Tutorial generado automaticamente.", 
+                        str(final_video_path),
+                        youtube_title or "Nuevo Tutorial",
+                        youtube_description or "Tutorial generado automaticamente.",
                         youtube_tags or []
                     )
                     job["message"] = f"Subido a YouTube exitosamente! URL: {video_url}"
@@ -397,7 +395,7 @@ async def generate_video_background(
             job["status"] = "failed"
             job["progress"] = 0
             stderr_text = stderr.decode(errors='ignore')
-            last_lines = [l for l in stderr_text.strip().splitlines() if l.strip()][-3:]
+            last_lines = [line for line in stderr_text.strip().splitlines() if line.strip()][-3:]
             job["message"] = f"Error en la generacion: {'|'.join(last_lines)}"
             log.error(f"Job {job_id} fallo. stderr: {stderr_text[:500]}")
 
@@ -413,7 +411,7 @@ async def generate_video_background(
 
 
 @app.get("/api/jobs/{job_id}")
-def get_job_status(job_id: str, auth: bool = Depends(verify_token)):
+def get_job_status(job_id: str, _auth: bool = Depends(verify_token)):
     job = load_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job no encontrado")
@@ -421,12 +419,12 @@ def get_job_status(job_id: str, auth: bool = Depends(verify_token)):
 
 
 @app.get("/api/jobs")
-def list_jobs_endpoint(auth: bool = Depends(verify_token)):
+def list_jobs_endpoint(_auth: bool = Depends(verify_token)):
     return list_jobs()
 
 
 @app.get("/api/files/{filename}")
-def download_file(filename: str, auth: bool = Depends(verify_token)):
+def download_file(filename: str, _auth: bool = Depends(verify_token)):
     file_path = OUTPUT_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
@@ -439,7 +437,7 @@ def download_file(filename: str, auth: bool = Depends(verify_token)):
 
 
 @app.get("/api/files")
-def list_files(auth: bool = Depends(verify_token)):
+def list_files(_auth: bool = Depends(verify_token)):
     files = []
     for file in OUTPUT_DIR.glob("*"):
         if file.is_file():
@@ -453,7 +451,7 @@ def list_files(auth: bool = Depends(verify_token)):
 
 
 @app.delete("/api/files/{filename}")
-def delete_file(filename: str, auth: bool = Depends(verify_token)):
+def delete_file(filename: str, _auth: bool = Depends(verify_token)):
     file_path = OUTPUT_DIR / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
@@ -464,7 +462,7 @@ def delete_file(filename: str, auth: bool = Depends(verify_token)):
 
 
 @app.delete("/api/jobs/{job_id}")
-def delete_job(job_id: str, auth: bool = Depends(verify_token)):
+def delete_job(job_id: str, _auth: bool = Depends(verify_token)):
     if delete_job_db(job_id):
         log.info(f"Job eliminado: {job_id}")
         return {"success": True, "message": "Job eliminado"}

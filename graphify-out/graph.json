@@ -1,0 +1,769 @@
+{
+  "nodes": [
+    {
+      "id": 1,
+      "name": "canal-tutorial-automation",
+      "type": "module",
+      "file": null,
+      "doc": null
+    },
+    {
+      "id": 2,
+      "name": "api_server",
+      "type": "module",
+      "file": "api_server.py",
+      "doc": null
+    },
+    {
+      "id": 3,
+      "name": "api_server.init_db",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 4,
+      "name": "api_server.load_job",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 5,
+      "name": "api_server.save_job",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 6,
+      "name": "api_server.list_jobs",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 7,
+      "name": "api_server.delete_job_db",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 8,
+      "name": "api_server.verify_token",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 9,
+      "name": "api_server.Scene",
+      "type": "class",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 10,
+      "name": "api_server.Script",
+      "type": "class",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 11,
+      "name": "api_server.GenerateScriptRequest",
+      "type": "class",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 12,
+      "name": "api_server.GenerateVideoRequest",
+      "type": "class",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 13,
+      "name": "api_server.health_check",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 14,
+      "name": "api_server.get_script",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 15,
+      "name": "api_server.update_script",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 16,
+      "name": "api_server.list_scripts",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 17,
+      "name": "api_server.get_job_status",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 18,
+      "name": "api_server.list_jobs_endpoint",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 19,
+      "name": "api_server.download_file",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 20,
+      "name": "api_server.list_files",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 21,
+      "name": "api_server.delete_file",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 22,
+      "name": "api_server.delete_job",
+      "type": "function",
+      "file": "api_server.py",
+      "doc": ""
+    },
+    {
+      "id": 23,
+      "name": "generate_script",
+      "type": "module",
+      "file": "generate_script.py",
+      "doc": null
+    },
+    {
+      "id": 24,
+      "name": "generate_script.generate_script",
+      "type": "function",
+      "file": "generate_script.py",
+      "doc": ""
+    },
+    {
+      "id": 25,
+      "name": "generate_video",
+      "type": "module",
+      "file": "generate_video.py",
+      "doc": null
+    },
+    {
+      "id": 26,
+      "name": "generate_video.get_font_path",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 27,
+      "name": "generate_video.load_script",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 28,
+      "name": "generate_video.assign_durations",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 29,
+      "name": "generate_video.scene_image_path",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 30,
+      "name": "generate_video.make_background",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 31,
+      "name": "generate_video.make_terminal_panel",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 32,
+      "name": "generate_video.transcribe_audio",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 33,
+      "name": "generate_video.make_subtitle_clips",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 34,
+      "name": "generate_video.build_scene_clip",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 35,
+      "name": "generate_video.make_intro",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 36,
+      "name": "generate_video.make_outro",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 37,
+      "name": "generate_video.compose_video",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 38,
+      "name": "generate_video.download_fallback_music",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 39,
+      "name": "generate_video.post_process",
+      "type": "function",
+      "file": "generate_video.py",
+      "doc": ""
+    },
+    {
+      "id": 40,
+      "name": "ide_simulator",
+      "type": "module",
+      "file": "ide_simulator.py",
+      "doc": null
+    },
+    {
+      "id": 41,
+      "name": "ide_simulator._load_font",
+      "type": "function",
+      "file": "ide_simulator.py",
+      "doc": ""
+    },
+    {
+      "id": 42,
+      "name": "ide_simulator._tokenize",
+      "type": "function",
+      "file": "ide_simulator.py",
+      "doc": ""
+    },
+    {
+      "id": 43,
+      "name": "ide_simulator._render_frame",
+      "type": "function",
+      "file": "ide_simulator.py",
+      "doc": ""
+    },
+    {
+      "id": 44,
+      "name": "ide_simulator.generate_ide_clip",
+      "type": "function",
+      "file": "ide_simulator.py",
+      "doc": ""
+    },
+    {
+      "id": 45,
+      "name": "ide_simulator.make_frame",
+      "type": "function",
+      "file": "ide_simulator.py",
+      "doc": ""
+    },
+    {
+      "id": 46,
+      "name": "logger",
+      "type": "module",
+      "file": "logger.py",
+      "doc": null
+    },
+    {
+      "id": 47,
+      "name": "logger.get_logger",
+      "type": "function",
+      "file": "logger.py",
+      "doc": ""
+    },
+    {
+      "id": 48,
+      "name": "run_tutorial",
+      "type": "module",
+      "file": "run_tutorial.py",
+      "doc": null
+    },
+    {
+      "id": 49,
+      "name": "run_tutorial.run_command",
+      "type": "function",
+      "file": "run_tutorial.py",
+      "doc": "Ejecuta comando y maneja errores"
+    },
+    {
+      "id": 50,
+      "name": "run_tutorial.main",
+      "type": "function",
+      "file": "run_tutorial.py",
+      "doc": ""
+    },
+    {
+      "id": 51,
+      "name": "script_generator_pro",
+      "type": "module",
+      "file": "script_generator_pro.py",
+      "doc": null
+    },
+    {
+      "id": 52,
+      "name": "script_generator_pro.load_from_markdown",
+      "type": "function",
+      "file": "script_generator_pro.py",
+      "doc": "Carga gui\u00f3n desde archivo Markdown estructurado"
+    },
+    {
+      "id": 53,
+      "name": "script_generator_pro.generate_with_gemini",
+      "type": "function",
+      "file": "script_generator_pro.py",
+      "doc": "Genera gui\u00f3n usando Gemini API"
+    },
+    {
+      "id": 54,
+      "name": "script_generator_pro.validate_script",
+      "type": "function",
+      "file": "script_generator_pro.py",
+      "doc": "Valida estructura del gui\u00f3n"
+    },
+    {
+      "id": 55,
+      "name": "script_generator_pro.interactive_menu",
+      "type": "function",
+      "file": "script_generator_pro.py",
+      "doc": "Men\u00fa interactivo para elegir fuente"
+    },
+    {
+      "id": 56,
+      "name": "script_generator_pro.main",
+      "type": "function",
+      "file": "script_generator_pro.py",
+      "doc": ""
+    },
+    {
+      "id": 57,
+      "name": "test_manim",
+      "type": "module",
+      "file": "test_manim.py",
+      "doc": null
+    },
+    {
+      "id": 58,
+      "name": "test_manim.SceneAnim",
+      "type": "class",
+      "file": "test_manim.py",
+      "doc": ""
+    },
+    {
+      "id": 59,
+      "name": "test_manim.SceneAnim.construct",
+      "type": "method",
+      "file": "test_manim.py",
+      "doc": null
+    },
+    {
+      "id": 60,
+      "name": "test_manim.construct",
+      "type": "function",
+      "file": "test_manim.py",
+      "doc": ""
+    },
+    {
+      "id": 61,
+      "name": "youtube_uploader",
+      "type": "module",
+      "file": "youtube_uploader.py",
+      "doc": null
+    },
+    {
+      "id": 62,
+      "name": "youtube_uploader.get_credentials",
+      "type": "function",
+      "file": "youtube_uploader.py",
+      "doc": "Obtiene o refresca las credenciales OAuth. Devuelve las credenciales."
+    },
+    {
+      "id": 63,
+      "name": "youtube_uploader.upload_to_youtube",
+      "type": "function",
+      "file": "youtube_uploader.py",
+      "doc": "Sube un video a YouTube usando OAuth 2.0 y la YouTube Data API v3.\nDevuelve la URL del video subido."
+    },
+    {
+      "id": 64,
+      "name": "youtube_uploader.authorize_youtube",
+      "type": "function",
+      "file": "youtube_uploader.py",
+      "doc": "Funci\u00f3n auxiliar para pre-autorizar YouTube antes de generar el primer video.\nLlama a esta funci\u00f3n desde la l\u00ednea de comandos para generar el token."
+    }
+  ],
+  "edges": [
+    {
+      "source": 1,
+      "target": 2,
+      "label": "contains"
+    },
+    {
+      "source": 2,
+      "target": 3,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 4,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 5,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 6,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 7,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 8,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 9,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 10,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 11,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 12,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 13,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 14,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 15,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 16,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 17,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 18,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 19,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 20,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 21,
+      "label": "defines"
+    },
+    {
+      "source": 2,
+      "target": 22,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 23,
+      "label": "contains"
+    },
+    {
+      "source": 23,
+      "target": 24,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 25,
+      "label": "contains"
+    },
+    {
+      "source": 25,
+      "target": 26,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 27,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 28,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 29,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 30,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 31,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 32,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 33,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 34,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 35,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 36,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 37,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 38,
+      "label": "defines"
+    },
+    {
+      "source": 25,
+      "target": 39,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 40,
+      "label": "contains"
+    },
+    {
+      "source": 40,
+      "target": 41,
+      "label": "defines"
+    },
+    {
+      "source": 40,
+      "target": 42,
+      "label": "defines"
+    },
+    {
+      "source": 40,
+      "target": 43,
+      "label": "defines"
+    },
+    {
+      "source": 40,
+      "target": 44,
+      "label": "defines"
+    },
+    {
+      "source": 40,
+      "target": 45,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 46,
+      "label": "contains"
+    },
+    {
+      "source": 46,
+      "target": 47,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 48,
+      "label": "contains"
+    },
+    {
+      "source": 48,
+      "target": 49,
+      "label": "defines"
+    },
+    {
+      "source": 48,
+      "target": 50,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 51,
+      "label": "contains"
+    },
+    {
+      "source": 51,
+      "target": 52,
+      "label": "defines"
+    },
+    {
+      "source": 51,
+      "target": 53,
+      "label": "defines"
+    },
+    {
+      "source": 51,
+      "target": 54,
+      "label": "defines"
+    },
+    {
+      "source": 51,
+      "target": 55,
+      "label": "defines"
+    },
+    {
+      "source": 51,
+      "target": 56,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 57,
+      "label": "contains"
+    },
+    {
+      "source": 57,
+      "target": 58,
+      "label": "defines"
+    },
+    {
+      "source": 58,
+      "target": 59,
+      "label": "has_method"
+    },
+    {
+      "source": 57,
+      "target": 60,
+      "label": "defines"
+    },
+    {
+      "source": 1,
+      "target": 61,
+      "label": "contains"
+    },
+    {
+      "source": 61,
+      "target": 62,
+      "label": "defines"
+    },
+    {
+      "source": 61,
+      "target": 63,
+      "label": "defines"
+    },
+    {
+      "source": 61,
+      "target": 64,
+      "label": "defines"
+    }
+  ]
+}

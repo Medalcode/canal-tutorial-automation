@@ -8,18 +8,16 @@ import argparse
 import json
 import os
 import sys
-import re
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import google.generativeai as genai
 
 
-def load_from_markdown(file_path: str) -> Dict:
+def load_from_markdown(file_path: str) -> dict:
     """Carga guión desde archivo Markdown estructurado"""
     print(f"📄 Cargando guión desde Markdown: {file_path}")
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         content = f.read()
 
     lines = content.split("\n")
@@ -59,7 +57,7 @@ def load_from_markdown(file_path: str) -> Dict:
     }
 
 
-def generate_with_gemini(topic: str, num_scenes: int = 5) -> Dict:
+def generate_with_gemini(topic: str, num_scenes: int = 5) -> dict:
     """Genera guión usando Gemini API"""
     print(f"🤖 Generando guión con Gemini IA para: '{topic}'")
 
@@ -115,7 +113,7 @@ def generate_with_gemini(topic: str, num_scenes: int = 5) -> Dict:
         sys.exit(1)
 
 
-def validate_script(script_data: Dict) -> bool:
+def validate_script(script_data: dict) -> bool:
     """Valida estructura del guión"""
     required_keys = ["topic", "scenes"]
     if not all(k in script_data for k in required_keys):
@@ -214,7 +212,7 @@ def main():
     print(f"   Tema: {script_data['topic']}")
     print(f"   Escenas: {len(script_data['scenes'])}")
     print("\n🎬 Próximo paso:")
-    print(f"   python generate_video.py")
+    print("   python generate_video.py")
 
 
 if __name__ == "__main__":
