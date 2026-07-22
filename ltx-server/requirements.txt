@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+diffusers
+transformers
+accelerate
+pillow
+sentencepiece
+protobuf
+python-multipart
+imageio
+imageio-ffmpeg

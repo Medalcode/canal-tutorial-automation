@@ -1,0 +1,189 @@
+{
+  "name": "LTX Video Generator con Ollama Qwen",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e0e37bc9-4171-464a-a00d-587deafdf4ab",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [ 220, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen2.5-coder:7b"
+            },
+            {
+              "name": "prompt",
+              "value": "Actúa como un director de cine experto en generar prompts para IA de video (LTX-Video). Escribe una pequeña frase hiper-descriptiva en INGLÉS (máximo 25 palabras) describiendo una toma cinemática fascinante sobre tecnología, programación o hackers. No incluyas explicaciones, responde ÚNICAMENTE con el prompt en inglés."
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ollama-http-node",
+      "name": "Generar Guion con Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [ 440, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ltx-inference:8080/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.response }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a931a7f0-0d67-4e63-a657-36e71966a35d",
+      "name": "Start Video Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [ 660, 300 ]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "847dfba1-56c9-4b13-9f56-654dbb893ea4",
+      "name": "Wait 30s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [ 880, 300 ]
+    },
+    {
+      "parameters": {
+        "url": "=http://ltx-inference:8080/status/{{ $('Start Video Generation').item.json.job_id }}",
+        "options": {}
+      },
+      "id": "6d9fb728-644b-4c07-b379-cd36c2e2f65a",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [ 1100, 300 ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "id": "c1f7a0b3-f000-4b53-bc2e-f0022797e889",
+      "name": "Is Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [ 1320, 300 ]
+    },
+    {
+      "parameters": {
+        "url": "=http://ltx-inference:8080/download/{{ $('Start Video Generation').item.json.job_id }}",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "f5f59047-9750-482a-bc9e-0498ec56e017",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [ 1540, 280 ]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Generar Guion con Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Guion con Ollama": {
+      "main": [
+        [
+          {
+            "node": "Start Video Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Video Generation": {
+      "main": [
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Is Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Completed?": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

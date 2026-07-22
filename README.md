@@ -1,136 +1,96 @@
-# 🎬 Video Generator Pro - Canal Tutorial Automation
+# 🎬 Video Generator Pro — n8n + LTX Video
 
-> **De una idea a YouTube en un solo clic, sin escribir código.**
+> **Genera tutoriales en video con IA de principio a fin, sin escribir código.**
 
-Pipeline automatizado para generar tutoriales en video con IA, narración, subtítulos, música y calidad 1080p @ 5Mbps, con subida automática a YouTube. Interfaz web intuitiva, FastAPI backend, Gemini 2.5 IA.
+Pipeline automatizado para generar tutoriales en video usando **n8n** como orquestador de workflows y **LTX Video** (LTX-2.3 de Lightricks) como motor de generación de video con IA. Narración TTS, subtítulos automáticos, música de fondo y subida a YouTube — todo orquestado visualmente.
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
+[![n8n](https://img.shields.io/badge/n8n-Workflow%20Automation-FF6D5A.svg?logo=n8n)](https://n8n.io)
+[![LTX Video](https://img.shields.io/badge/LTX%20Video-AI%20Generation-blueviolet.svg)](https://github.com/Lightricks/ltx-video)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
-[![Python](https://img.shields.io/badge/Logging-Rotating%20File-blue.svg)]()
-[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black.svg?logo=vercel)](https://canal-tutorial-automation.vercel.app)
 
 ---
 
-## ✨ Características
+## 🏗️ Arquitectura
 
-### 🤖 Inteligencia Artificial (Gemini 2.5)
-- ✅ Generación automática de guiones con Gemini 2.5 Flash
-- ✅ Generación de **Título optimizado para YouTube** (SEO)
-- ✅ Generación de **Descripción** detallada para YouTube
-- ✅ Generación de **Etiquetas/Hashtags** relevantes
-- ✅ Estructura automática con intro, desarrollo y outro
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       n8n (Orquestador)                         │
+│  Webhook → Ollama (Qwen) → Split Scenes → LTX → Compose → YT    │
+└──────────┬──────────────────────────────────┬────────────────┘
+           │                                  │
+    ┌──────▼──────┐                   ┌───────▼───────┐
+    │ LTX Server  │                   │ Compose       │
+    │ FastAPI     │                   │ Scripts       │
+    │ :8080       │                   │ (ffmpeg+TTS)  │
+    │ GPU (4060)  │                   └───────────────┘
+    └─────────────┘
+           │
+    ┌──────▼──────┐    ┌─────────┐    ┌──────▼──────┐
+    │ PostgreSQL  │    │  Redis  │    │   Ollama    │
+    │   (n8n DB)  │    │ (Queue) │    │(Qwen2.5 7B) │
+    └─────────────┘    └─────────┘    └─────────────┘
+```
 
-### 📺 Subida Automática a YouTube
-- ✅ Integración con YouTube Data API v3
-- ✅ Subida directa sin salir de la aplicación
-- ✅ Videos publicados como **Públicos** automáticamente
-- ✅ Marcados como **Contenido apto para niños**
-- ✅ Autenticación OAuth 2.0 segura (token guardado localmente)
+### Componentes
 
-### 🎙️ Audio & Narración
-- ✅ Voces naturales en español con edge-tts
-- ✅ Normalización y compresión de audio automática
-- ✅ Música de fondo balanceada (descarga automática si no existe)
-- ✅ Bitrate 192kbps (calidad superior)
-
-### 📝 Subtítulos & Texto
-- ✅ Subtítulos sincronizados (word-level)
-- ✅ Detección automática con faster-whisper
-- ✅ Títulos de escenas con fuente profesional
-- ✅ Overlay estilo terminal (código verde)
-
-### 🎬 Video & Composición (MoviePy)
-- ✅ Composición 100% nativa en Python con MoviePy (sin dependencias Node.js)
-- ✅ Soporte para concurrencia masiva (múltiples renderizados simultáneos)
-- ✅ Base de Datos local (SQLite) integrada para historial de trabajos
-- ✅ Renderizado optimizado de pantalla dividida con avatares e IDE animado
-- ✅ Resolución 1920x1080 Full HD a 30 FPS
-
-### 🌐 Interfaz Web
-- ✅ Panel de control moderno (dark mode)
-- ✅ Dashboard con estadísticas en vivo
-- ✅ Monitor de progreso en tiempo real
-- ✅ Responsive (desktop/mobile)
-
-### 📦 Deployment
-- ✅ Docker support
-- ✅ Vercel + Railway ready
+| Servicio | Descripción | Puerto |
+|----------|-------------|--------|
+| **n8n** | Orquestador de workflows visual | `5678` |
+| **n8n-worker** | Ejecutor de tareas en cola | — |
+| **ltx-inference** | API REST de generación de video (LTX-2.3) | `8080` |
+| **Ollama** | Motor local para LLM (Qwen2.5-Coder) | `11434` |
+| **PostgreSQL** | Base de datos persistente para n8n | `5432` |
+| **Redis** | Cola de mensajes para ejecución distribuida | `6379` |
 
 ---
 
-## 🚀 Inicio Rápido (Local)
+## 🚀 Inicio Rápido
 
-### 1. Clonar y preparar el entorno
+### Requisitos
+
+- **Docker** + **Docker Compose** v2+
+- **NVIDIA GPU** con drivers instalados (RTX 4060 o superior)
+- **NVIDIA Container Toolkit** ([instalación](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html))
+- **Gemini API Key** ([obtener gratis](https://aistudio.google.com/app/apikey))
+
+### 1. Clonar y configurar
 
 ```bash
 git clone https://github.com/Medalcode/canal-tutorial-automation.git
 cd canal-tutorial-automation
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+cp .env.example .env
 ```
 
-### 2. Configurar las claves
-
-Crea un archivo `.env` en la raíz del proyecto:
-
+Edita `.env` con tus valores:
 ```env
+POSTGRES_PASSWORD=tu_password_seguro
+N8N_ENCRYPTION_KEY=una_clave_aleatoria_larga
 GEMINI_API_KEY=tu_clave_de_google_ai_studio
-API_SECRET_TOKEN=token_opcional_para_api
-LOG_LEVEL=INFO
 ```
 
-| Variable | Obligatorio | Descripción |
-|----------|-------------|-------------|
-| `GEMINI_API_KEY` | ✅ Sí | Clave de Google AI Studio para generar guiones |
-| `API_SECRET_TOKEN` | ❌ No | Token para autenticar llamadas a la API REST |
-| `LOG_LEVEL` | ❌ No | Nivel de logging: `DEBUG`, `INFO`, `WARNING`, `ERROR` (default: `INFO`) |
-
-Obtén tu clave gratis en: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-
-### 3. Configurar YouTube (primera vez)
-
-Para habilitar la subida automática a YouTube necesitas:
-
-1. Ir a [Google Cloud Console](https://console.cloud.google.com/) y crear un proyecto.
-2. Habilitar la **YouTube Data API v3**.
-3. Crear credenciales **OAuth 2.0 Client ID** (tipo: Aplicación de escritorio).
-4. Descargar el JSON y guardarlo como `client_secret.json` en la raíz del proyecto.
-5. En la Pantalla de Consentimiento OAuth, añadir tu correo como **Usuario de Prueba**.
-
-### 4. Lanzar la aplicación
-
-**Opción A — Doble clic (más fácil):**
-
-Haz doble clic en el archivo `iniciar.sh` y selecciona "Ejecutar como programa".
-La primera vez te pedirá autorizar tu cuenta de YouTube en el navegador.
-
-**Opción B — Terminal:**
+### 2. Levantar el stack
 
 ```bash
-source venv/bin/activate
-python api_server.py
+docker compose up -d
 ```
 
-Luego abre [http://localhost:8001](http://localhost:8001) en tu navegador.
+La primera vez tardará en descargar los modelos de LTX (~5GB).
 
----
+### 3. Configurar n8n
 
-## 🎯 Flujo de Uso
+1. Abre [http://localhost:5678](http://localhost:5678)
+2. Crea tu cuenta de administrador
+3. Ve a **Settings → Credentials** y añade tu Gemini API Key como "Query Auth" credential
+4. Importa el workflow: **Settings → Import Workflow** → selecciona `n8n-workflows/01-generate-tutorial.json`
 
-```
-1. Escribe tus ideas en el cuadro de texto
-        ↓
-2. Pulsa "Que la IA haga el Guion"
-   (Gemini genera guion + título + descripción + etiquetas)
-        ↓
-3. Revisa y edita el título y descripción si lo deseas
-        ↓
-4. Pulsa "🔴 Crear Video y Subir a YouTube"
-        ↓
-5. El video se genera y se sube automáticamente como Público
+### 4. Generar un tutorial
+
+Envía un POST al webhook:
+```bash
+curl -X POST http://localhost:5678/webhook/generate-tutorial \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "Cómo funciona la inteligencia artificial", "num_scenes": 5}'
 ```
 
 ---
@@ -139,61 +99,82 @@ Luego abre [http://localhost:8001](http://localhost:8001) en tu navegador.
 
 ```
 canal-tutorial-automation/
-├── api_server.py          # Backend FastAPI con Base de Datos SQLite
-├── generate_video.py      # Motor de video optimizado con MoviePy
-├── ide_simulator.py       # Simulación de IDE visual
-├── logger.py              # Logging estructurado con rotación
-├── script_generator_pro.py# Generación de guion con Gemini 2.5
-├── youtube_uploader.py    # Módulo de subida a YouTube
-├── database.sqlite        # Historial de trabajos y metadatos
-├── iniciar.sh             # Script de inicio
-├── requirements.txt       # Dependencias Python
-├── web/
-│   ├── index.html         # Interfaz web
-│   └── app.js             # Lógica del frontend
-├── assets/                # Fuentes y música de fondo
-├── output/                # Videos generados (ignorado por git)
-├── logs/                  # Logs rotativos (ignorado por git)
-├── .env                   # Claves secretas (NO subir a GitHub)
-└── client_secret.json     # Credenciales OAuth (NO subir a GitHub)
+├── docker-compose.yml          # Stack completo (n8n + postgres + redis + ltx)
+├── .env.example                # Template de variables de entorno
+├── ltx-server/                 # Servidor de inferencia LTX Video
+│   ├── main.py                 # FastAPI endpoints
+│   ├── inference.py            # Pipeline LTX-2.3 (optimizado 8GB VRAM)
+│   ├── Dockerfile              # Imagen CUDA + Python
+│   └── requirements.txt        # Dependencias del servidor
+├── compose/                    # Scripts de composición de video
+│   ├── add_narration.py        # TTS con edge-tts (español)
+│   ├── add_subtitles.py        # Subtítulos con faster-whisper
+│   ├── add_music.py            # Mezcla de música de fondo
+│   ├── concat_clips.py         # Concatenación con crossfade
+│   ├── final_render.sh         # Pipeline completo de render
+│   └── requirements.txt        # Dependencias de composición
+├── n8n-workflows/              # Workflows exportados para n8n
+│   └── 01-generate-tutorial.json
+├── models/                     # Modelos LTX descargados (gitignored)
+├── output/                     # Videos generados (gitignored)
+└── assets/                     # Fuentes y música de fondo
 ```
+
+---
+
+## 🔧 API del Servidor LTX
+
+El servidor de inferencia expone estos endpoints:
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check + estado GPU |
+| `POST` | `/generate` | Generar video desde texto (async) |
+| `POST` | `/generate/i2v` | Generar video desde imagen (async) |
+| `GET` | `/status/{job_id}` | Estado de un job |
+| `GET` | `/download/{job_id}` | Descargar video generado |
+| `GET` | `/jobs` | Listar todos los jobs |
+
+### Ejemplo: Text-to-Video
+
+```bash
+curl -X POST http://localhost:8080/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Cinematic shot of a futuristic coding workspace with holographic displays, warm ambient lighting, camera slowly dollying in",
+    "width": 512,
+    "height": 320,
+    "num_frames": 97,
+    "num_inference_steps": 30
+  }'
+```
+
+---
+
+## ⚙️ Configuración de Hardware
+
+### RTX 4060 (8GB VRAM) — Optimizaciones aplicadas:
+- **Sequential CPU Offloading**: Imprescindible para cargar el gigantesco encoder de texto T5-XXL (22GB) por partes sin colapsar la VRAM de 8GB.
+- **bfloat16 precision**: Para reducir a la mitad el tamaño del modelo principal.
+- **Desactivación de VAE Tiling**: Fundamental para LTX-Video. El tiling daña los VAE 3D de video causando ruido estático (manchas de colores).
+- **Resolución y Frames**: Establecido a 512×320 a 49 frames (~2s) para máxima estabilidad.
+- **PyTorch Memory Fragmentation**: Se inyectó `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` para evitar colapsos por fragmentación.
+- **Ollama Alternativo**: Ollama se configura con `OLLAMA_KEEP_ALIVE=0` para que el modelo Qwen libere la GPU instantáneamente antes de que LTX comience a renderizar.
+
+### Rendimiento esperado:
+| Resolución | Frames | Tiempo aprox. | Consumo VRAM |
+|------------|--------|---------------|--------------|
+| 512×320 | 49 (~2s) | ~59 segundos  | ~7.0 GB      |
 
 ---
 
 ## 🔒 Seguridad
 
-Los siguientes archivos están en `.gitignore` y **nunca** se suben a GitHub:
-- `.env` — API Keys
-- `client_secret.json` — Credenciales OAuth de Google
-- `youtube_token.pkl` — Token de acceso de YouTube
+Los siguientes archivos están en `.gitignore`:
+- `.env` — Contraseñas y API Keys
+- `models/` — Modelos de IA descargados
 - `output/` — Videos generados
-- `logs/` — Logs rotativos del sistema
-- `database.sqlite` — Base de datos local
-
----
-
-## 🛠️ Requisitos
-
-- Python 3.10+
-- ffmpeg (instalado en el sistema)
-- Cuenta de Google AI Studio (Gemini API key gratuita)
-- Cuenta de YouTube con canal propio
-
-## Knowledge Graph
-
-`graphify-out/graph.json` contiene **64 nodos y 63 aristas** del AST del proyecto, permitiendo a agentes AI comprender la arquitectura sin escanear archivos.
-
-## Skills
-
-- **tdd** (skills.sh) — patrones de testing para mantener y expandir la cobertura
-
----
-
-## 🛠️ Mejoras y Refactorizaciones (Julio 2026)
-
-- **Separación de Responsabilidades:** Se extrajo la lógica de base de datos de `api_server.py` hacia un nuevo módulo `database.py` para evitar acoplamiento y sobreingeniería.
-- **Logging Consistente:** Se migró `youtube_uploader.py` de `print` a la configuración central de `logger.py`.
-- **Pruebas Automatizadas (TDD):** Se implementaron tests (pytest) con cobertura para operaciones de base de datos, API endpoints e interacción con YouTube (mockeada).
+- `postgres_data/`, `redis_data/`, `n8n_data/` — Datos de Docker
 
 ---
 

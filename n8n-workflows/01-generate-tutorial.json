@@ -1,0 +1,214 @@
+{
+  "name": "Generate Tutorial Video",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-tutorial",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: `Eres un experto creador de tutoriales para YouTube. Crea un guion para un video tutorial basado en: \"${$json.body.topic}\"\n\nRequisitos:\n- Minimo ${$json.body.num_scenes || 5} escenas\n- Cada escena debe tener un campo \"visual_prompt\" que describa en ingles, de forma detallada y cinematografica, lo que se debe ver en pantalla (esto se usara para generar video con IA)\n- Los visual_prompts deben ser descriptivos: iluminacion, angulo de camara, estilo visual, movimiento\n- Narracion en espanol latino, clara y motivadora\n- Duracion total: 8-12 minutos\n\nResponde SOLO con JSON valido:\n{\n  \"topic\": \"...\",\n  \"youtube_title\": \"Titulo llamativo...\",\n  \"youtube_description\": \"Descripcion SEO...\",\n  \"youtube_tags\": [\"tag1\", \"tag2\"],\n  \"scenes\": [\n    {\n      \"id\": \"intro\",\n      \"title\": \"Titulo de escena\",\n      \"narration\": \"Texto de narracion...\",\n      \"visual_prompt\": \"Cinematic shot of a futuristic workspace with holographic displays showing code, warm ambient lighting, camera slowly dollying in, 4K quality\"\n    }\n  ]\n}` }] }] }) }}",
+        "options": {}
+      },
+      "id": "gemini-generate-script",
+      "name": "Gemini: Generate Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "CONFIGURE_ME",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.candidates[0].content.parts[0].text;\n\n// Parse the JSON from Gemini response\nlet script;\ntry {\n  let text = content.trim();\n  if (text.startsWith('```')) text = text.split('\\n').slice(1).join('\\n');\n  if (text.endsWith('```')) text = text.slice(0, text.lastIndexOf('```'));\n  script = JSON.parse(text);\n} catch (e) {\n  throw new Error(`Failed to parse Gemini response as JSON: ${e.message}`);\n}\n\n// Return each scene as a separate item for the loop\nconst scenes = script.scenes.map((scene, index) => ({\n  json: {\n    scene_index: index,\n    scene_id: scene.id,\n    scene_title: scene.title,\n    narration: scene.narration,\n    visual_prompt: scene.visual_prompt,\n    total_scenes: script.scenes.length,\n    youtube_title: script.youtube_title,\n    youtube_description: script.youtube_description,\n    youtube_tags: script.youtube_tags,\n    topic: script.topic\n  }\n}));\n\nreturn scenes;"
+      },
+      "id": "parse-script",
+      "name": "Parse Script & Split Scenes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ltx-inference:8080/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prompt: $json.visual_prompt, negative_prompt: 'worst quality, inconsistent motion, blurry, jittery, distorted, text, watermark', width: 512, height: 320, num_frames: 97, num_inference_steps: 30 }) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "ltx-generate",
+      "name": "LTX: Generate Video Clip",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "wait-generation",
+      "name": "Wait 30s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://ltx-inference:8080/status/{{ $('LTX: Generate Video Clip').first().json.job_id }}",
+        "options": {}
+      },
+      "id": "check-status",
+      "name": "Check LTX Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-completed",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-completed",
+      "name": "If Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1750, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://ltx-inference:8080/download/{{ $('LTX: Generate Video Clip').first().json.job_id }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-clip",
+      "name": "Download Clip",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "command": "=python3 /app/compose/add_narration.py --text \"{{ $json.narration }}\" --output /app/output/narration_{{ $json.scene_index }}.mp3"
+      },
+      "id": "generate-narration",
+      "name": "Generate Narration (TTS)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Tutorial generation pipeline started', topic: $('Webhook Trigger').first().json.body.topic }) }}"
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [500, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Gemini: Generate Script", "type": "main", "index": 0 },
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Gemini: Generate Script": {
+      "main": [
+        [{ "node": "Parse Script & Split Scenes", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Script & Split Scenes": {
+      "main": [
+        [{ "node": "LTX: Generate Video Clip", "type": "main", "index": 0 }]
+      ]
+    },
+    "LTX: Generate Video Clip": {
+      "main": [
+        [{ "node": "Wait 30s", "type": "main", "index": 0 }]
+      ]
+    },
+    "Wait 30s": {
+      "main": [
+        [{ "node": "Check LTX Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check LTX Status": {
+      "main": [
+        [{ "node": "If Completed?", "type": "main", "index": 0 }]
+      ]
+    },
+    "If Completed?": {
+      "main": [
+        [{ "node": "Download Clip", "type": "main", "index": 0 }],
+        [{ "node": "Wait 30s", "type": "main", "index": 0 }]
+      ]
+    },
+    "Download Clip": {
+      "main": [
+        [{ "node": "Generate Narration (TTS)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    { "name": "video-generation" },
+    { "name": "tutorial" },
+    { "name": "ai" }
+  ]
+}

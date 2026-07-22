@@ -12,3 +12,10 @@ scripts/
 *.env
 database.sqlite
 logs/
+
+# Docker volumes & Secrets
+models/
+n8n_data/
+postgres_data/
+redis_data/
+.env
