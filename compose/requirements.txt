@@ -1,3 +1,5 @@
 edge-tts
 faster-whisper
 imageio-ffmpeg
+pygments
+Pillow

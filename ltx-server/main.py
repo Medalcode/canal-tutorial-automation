@@ -222,11 +222,11 @@ async def compose_split_screen(request: ComposeRequest):
             "-i", avatar_video,
             "-loop", "1", "-i", code_png_path,
             "-i", narration_mp3_path,
-            "-t", str(duration),
             "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
             "-map", "[v]", "-map", "2:a",
             "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "5M",
             "-c:a", "aac",
+            "-shortest",
             final_output_path
         ]
     else:
@@ -235,10 +235,10 @@ async def compose_split_screen(request: ComposeRequest):
         ] + avatar_loop_arg + [
             "-i", avatar_video,
             "-loop", "1", "-i", code_png_path,
-            "-t", "10",
             "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
             "-map", "[v]",
             "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "5M",
+            "-t", "10",
             final_output_path
         ]
         

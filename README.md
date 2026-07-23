@@ -11,7 +11,13 @@ Pipeline automatizado para generar tutoriales en video usando **n8n** como orque
 
 ---
 
-## 🏗️ Arquitectura
+## 🏗️ Arquitectura (40/60 Split-Screen)
+
+Para optimizar el uso de VRAM (8GB) y acelerar la renderización de tutoriales, el sistema emplea una técnica de pantalla dividida 40/60:
+
+- **40% Izquierdo (Avatar)**: Renderizado dinámico de LTX-Video o imagen animada de un avatar (ej. estilo Ghibli).
+- **60% Derecho (Código)**: El código generado por Qwen se renderiza automáticamente en una ventana de VS Code simulada (Pillow + Pygments) sin requerir IA generativa de video para esta zona estática.
+- **FFmpeg Composite**: Une ambas partes con el audio TTS en un video HD final (1920x1080) en milisegundos.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -20,8 +26,8 @@ Pipeline automatizado para generar tutoriales en video usando **n8n** como orque
 └──────────┬──────────────────────────────────┬────────────────┘
            │                                  │
     ┌──────▼──────┐                   ┌───────▼───────┐
-    │ LTX Server  │                   │ Compose       │
-    │ FastAPI     │                   │ Scripts       │
+    │ LTX Server  │                   │ Compose 40/60 │
+    │ FastAPI     │                   │ Avatar + Code │
     │ :8080       │                   │ (ffmpeg+TTS)  │
     │ GPU (4060)  │                   └───────────────┘
     └─────────────┘
