@@ -1,5 +1,5 @@
 {
-  "name": "Generador de Tutoriales 40/60 con Qwen & LTX Video",
+  "name": "Generador de Tutoriales 40/60 con Qwen & Avatar Ghibli",
   "nodes": [
     {
       "parameters": {},
@@ -22,7 +22,7 @@
             },
             {
               "name": "prompt",
-              "value": "Actúa como un profesor de programación. Genera un prompt cinemático en INGLÉS de 15 palabras sobre un hacker o programador estilo anime trabajando en un estudio para LTX-Video. Responde únicamente con el prompt en inglés."
+              "value": "Actúa como un profesor de programación experto. Escribe un fragmento de código útil en Python (máximo 8 líneas) que realice una tarea interesante. Responde únicamente con el código en Python, sin explicaciones ni markdown."
             },
             {
               "name": "stream",
@@ -32,8 +32,8 @@
         },
         "options": {}
       },
-      "id": "ollama-http-node",
-      "name": "Generar Guion con Ollama",
+      "id": "ollama-code-node",
+      "name": "Generar Código con Qwen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [ 440, 300 ]
@@ -41,62 +41,31 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://ltx-inference:8080/generate",
+        "url": "http://ollama:11434/api/generate",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
+              "name": "model",
+              "value": "qwen2.5-coder:7b"
+            },
+            {
               "name": "prompt",
-              "value": "={{ $json.response }}"
+              "value": "=Escribe una frase corta en ESPAÑOL (máximo 25 palabras) explicando qué hace este código:\n{{ $json.response }}"
+            },
+            {
+              "name": "stream",
+              "value": false
             }
           ]
         },
         "options": {}
       },
-      "id": "a931a7f0-0d67-4e63-a657-36e71966a35d",
-      "name": "Start Video Generation",
+      "id": "ollama-script-node",
+      "name": "Generar Narración en Español",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [ 660, 300 ]
-    },
-    {
-      "parameters": {
-        "amount": 30,
-        "unit": "seconds"
-      },
-      "id": "847dfba1-56c9-4b13-9f56-654dbb893ea4",
-      "name": "Wait 30s",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [ 880, 300 ]
-    },
-    {
-      "parameters": {
-        "url": "=http://ltx-inference:8080/status/{{ $('Start Video Generation').item.json.job_id }}",
-        "options": {}
-      },
-      "id": "6d9fb728-644b-4c07-b379-cd36c2e2f65a",
-      "name": "Check Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [ 1100, 300 ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.status }}",
-              "value2": "completed"
-            }
-          ]
-        }
-      },
-      "id": "c1f7a0b3-f000-4b53-bc2e-f0022797e889",
-      "name": "Is Completed?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [ 1320, 300 ]
     },
     {
       "parameters": {
@@ -107,25 +76,25 @@
           "parameters": [
             {
               "name": "job_id",
-              "value": "={{ $('Start Video Generation').item.json.job_id }}"
+              "value": "default"
             },
             {
               "name": "code_text",
-              "value": "# Tutorial de Automatización en Python\nimport torch\n\ndef main():\n    print('¡Video de Tutorial 40/60 completado!')\n\nif __name__ == '__main__':\n    main()"
+              "value": "={{ $('Generar Código con Qwen').item.json.response }}"
             },
             {
               "name": "narration_text",
-              "value": "Hola a todos, bienvenidos a este tutorial. Hoy aprenderemos a automatizar la creación de videos usando Inteligencia Artificial local."
+              "value": "={{ $('Generar Narración en Español').item.json.response }}"
             }
           ]
         },
         "options": {}
       },
       "id": "compose-split-node",
-      "name": "Compose 40/60 Split Video",
+      "name": "Crear Video Split 40/60",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [ 1540, 280 ]
+      "position": [ 880, 300 ]
     },
     {
       "parameters": {
@@ -134,10 +103,10 @@
         "options": {}
       },
       "id": "f5f59047-9750-482a-bc9e-0498ec56e017",
-      "name": "Download Video",
+      "name": "Descargar Video Final",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [ 1760, 280 ]
+      "position": [ 1100, 300 ]
     }
   ],
   "connections": {
@@ -145,80 +114,40 @@
       "main": [
         [
           {
-            "node": "Generar Guion con Ollama",
+            "node": "Generar Código con Qwen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generar Guion con Ollama": {
+    "Generar Código con Qwen": {
       "main": [
         [
           {
-            "node": "Start Video Generation",
+            "node": "Generar Narración en Español",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Start Video Generation": {
+    "Generar Narración en Español": {
       "main": [
         [
           {
-            "node": "Wait 30s",
+            "node": "Crear Video Split 40/60",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait 30s": {
+    "Crear Video Split 40/60": {
       "main": [
         [
           {
-            "node": "Check Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Status": {
-      "main": [
-        [
-          {
-            "node": "Is Completed?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is Completed?": {
-      "main": [
-        [
-          {
-            "node": "Compose 40/60 Split Video",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Wait 30s",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Compose 40/60 Split Video": {
-      "main": [
-        [
-          {
-            "node": "Download Video",
+            "node": "Descargar Video Final",
             "type": "main",
             "index": 0
           }

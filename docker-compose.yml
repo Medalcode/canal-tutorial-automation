@@ -82,6 +82,7 @@ services:
     volumes:
       - ./models:/app/models
       - ./output:/app/output
+      - ./assets:/app/assets
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - HF_HOME=/app/models

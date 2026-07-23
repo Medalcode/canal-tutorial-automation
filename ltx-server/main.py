@@ -170,11 +170,20 @@ async def compose_split_screen(request: ComposeRequest):
     import subprocess
     from code_renderer import render_vscode_ide
     
-    if request.job_id not in jobs or jobs[request.job_id]["status"] != "completed":
-        raise HTTPException(status_code=400, detail="Job not found or not completed yet")
+    avatar_video = None
+    if request.job_id and request.job_id in jobs and jobs[request.job_id]["status"] == "completed":
+        avatar_video = jobs[request.job_id]["file_path"]
         
-    avatar_video = jobs[request.job_id]["file_path"]
-    split_job_id = f"split_{request.job_id}"
+    if not avatar_video or not os.path.exists(avatar_video):
+        # Fallback to official Ghibli Programmer avatar
+        if os.path.exists("/app/assets/ghibli_programmer.png"):
+            avatar_video = "/app/assets/ghibli_programmer.png"
+        elif os.path.exists("./assets/ghibli_programmer.png"):
+            avatar_video = "./assets/ghibli_programmer.png"
+        else:
+            raise HTTPException(status_code=400, detail="Avatar video or Ghibli base image not found")
+        
+    split_job_id = f"split_{uuid.uuid4().hex[:8]}"
     final_output_path = os.path.join(OUTPUT_DIR, f"{split_job_id}.mp4")
     
     # 1. Render Code IDE Image (1152x1080)
