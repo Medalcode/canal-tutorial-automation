@@ -35,8 +35,8 @@ class GenerateRequest(BaseModel):
     negative_prompt: Optional[str] = "worst quality, inconsistent motion, blurry, jittery, distorted"
     width: Optional[int] = 512
     height: Optional[int] = 320
-    num_frames: Optional[int] = 97
-    num_inference_steps: Optional[int] = 30
+    num_frames: Optional[int] = 49
+    num_inference_steps: Optional[int] = 25
 
 def process_t2v_job(job_id: str, request: GenerateRequest):
     jobs[job_id]["status"] = "processing"
@@ -108,8 +108,8 @@ async def generate_i2v(
     negative_prompt: str = Form("worst quality, inconsistent motion, blurry, jittery, distorted"),
     width: int = Form(512),
     height: int = Form(320),
-    num_frames: int = Form(97),
-    num_inference_steps: int = Form(30)
+    num_frames: int = Form(49),
+    num_inference_steps: int = Form(25)
 ):
     job_id = str(uuid.uuid4())
     
