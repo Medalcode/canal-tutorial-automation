@@ -205,6 +205,16 @@ async def compose_split_screen(request: ComposeRequest):
     is_image = avatar_video.lower().endswith(('.png', '.jpg', '.jpeg'))
     avatar_loop_arg = ["-loop", "1"] if is_image else ["-stream_loop", "-1"]
 
+    duration = 10.0
+    if os.path.exists(narration_mp3_path):
+        try:
+            probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", narration_mp3_path]
+            res = subprocess.run(probe_cmd, capture_output=True, text=True)
+            duration = float(res.stdout.strip())
+        except Exception as e:
+            print(f"Could not probe narration duration: {e}")
+            duration = 10.0
+
     if os.path.exists(narration_mp3_path):
         cmd_ffmpeg = [
             "ffmpeg", "-y"
@@ -212,10 +222,11 @@ async def compose_split_screen(request: ComposeRequest):
             "-i", avatar_video,
             "-loop", "1", "-i", code_png_path,
             "-i", narration_mp3_path,
+            "-t", str(duration),
             "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
             "-map", "[v]", "-map", "2:a",
-            "-c:v", "libx264", "-preset", "fast", "-b:v", "5M",
-            "-c:a", "aac", "-shortest",
+            "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "5M",
+            "-c:a", "aac",
             final_output_path
         ]
     else:
@@ -227,7 +238,7 @@ async def compose_split_screen(request: ComposeRequest):
             "-t", "10",
             "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
             "-map", "[v]",
-            "-c:v", "libx264", "-preset", "fast", "-b:v", "5M",
+            "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "5M",
             final_output_path
         ]
         
