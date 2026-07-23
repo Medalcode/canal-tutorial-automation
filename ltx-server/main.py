@@ -202,10 +202,14 @@ async def compose_split_screen(request: ComposeRequest):
         print(f"Error generating TTS: {e}")
         
     # 3. FFmpeg 40/60 Split-Screen Composite
+    is_image = avatar_video.lower().endswith(('.png', '.jpg', '.jpeg'))
+    avatar_loop_arg = ["-loop", "1"] if is_image else ["-stream_loop", "-1"]
+
     if os.path.exists(narration_mp3_path):
         cmd_ffmpeg = [
-            "ffmpeg", "-y",
-            "-stream_loop", "-1", "-i", avatar_video,
+            "ffmpeg", "-y"
+        ] + avatar_loop_arg + [
+            "-i", avatar_video,
             "-loop", "1", "-i", code_png_path,
             "-i", narration_mp3_path,
             "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
@@ -216,8 +220,9 @@ async def compose_split_screen(request: ComposeRequest):
         ]
     else:
         cmd_ffmpeg = [
-            "ffmpeg", "-y",
-            "-stream_loop", "-1", "-i", avatar_video,
+            "ffmpeg", "-y"
+        ] + avatar_loop_arg + [
+            "-i", avatar_video,
             "-loop", "1", "-i", code_png_path,
             "-t", "10",
             "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
