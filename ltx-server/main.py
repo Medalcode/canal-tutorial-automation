@@ -176,12 +176,14 @@ async def compose_split_screen(request: ComposeRequest):
         
     if not avatar_video or not os.path.exists(avatar_video):
         # Fallback to official Ghibli Programmer avatar
-        if os.path.exists("/app/assets/ghibli_programmer.png"):
+        if os.path.exists("/app/ghibli_programmer.png"):
+            avatar_video = "/app/ghibli_programmer.png"
+        elif os.path.exists("/app/assets/ghibli_programmer.png"):
             avatar_video = "/app/assets/ghibli_programmer.png"
         elif os.path.exists("./assets/ghibli_programmer.png"):
             avatar_video = "./assets/ghibli_programmer.png"
         else:
-            raise HTTPException(status_code=400, detail="Avatar video or Ghibli base image not found")
+            raise HTTPException(status_code=400, detail="Avatar base image not found")
         
     split_job_id = f"split_{uuid.uuid4().hex[:8]}"
     final_output_path = os.path.join(OUTPUT_DIR, f"{split_job_id}.mp4")
