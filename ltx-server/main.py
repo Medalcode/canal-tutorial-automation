@@ -38,6 +38,11 @@ class GenerateRequest(BaseModel):
     num_frames: Optional[int] = 49
     num_inference_steps: Optional[int] = 25
 
+class ComposeRequest(BaseModel):
+    job_id: str
+    code_text: Optional[str] = "# Code Example\nimport torch\n\ndef main():\n    print('40/60 Split Tutorial Completed!')"
+    narration_text: Optional[str] = "Hola a todos, hoy aprenderemos cómo crear un script en Python para automatización."
+
 def process_t2v_job(job_id: str, request: GenerateRequest):
     jobs[job_id]["status"] = "processing"
     output_path = os.path.join(OUTPUT_DIR, f"{job_id}.mp4")
@@ -159,6 +164,70 @@ async def download_video(job_id: str):
         media_type="video/mp4", 
         filename=f"{job_id}.mp4"
     )
+
+@app.post("/compose")
+async def compose_split_screen(request: ComposeRequest):
+    import subprocess
+    from code_renderer import render_vscode_ide
+    
+    if request.job_id not in jobs or jobs[request.job_id]["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Job not found or not completed yet")
+        
+    avatar_video = jobs[request.job_id]["file_path"]
+    split_job_id = f"split_{request.job_id}"
+    final_output_path = os.path.join(OUTPUT_DIR, f"{split_job_id}.mp4")
+    
+    # 1. Render Code IDE Image (1152x1080)
+    code_png_path = os.path.join(OUTPUT_DIR, f"{split_job_id}_code.png")
+    img = render_vscode_ide(request.code_text, width=1152, height=1080)
+    img.save(code_png_path)
+    
+    # 2. Render Narration TTS Audio
+    narration_mp3_path = os.path.join(OUTPUT_DIR, f"{split_job_id}_narration.mp3")
+    cmd_tts = ["edge-tts", "--voice", "es-MX-DaliaNeural", "--text", request.narration_text, "--write-media", narration_mp3_path]
+    try:
+        subprocess.run(cmd_tts, check=True)
+    except Exception as e:
+        print(f"Error generating TTS: {e}")
+        
+    # 3. FFmpeg 40/60 Split-Screen Composite
+    if os.path.exists(narration_mp3_path):
+        cmd_ffmpeg = [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", avatar_video,
+            "-loop", "1", "-i", code_png_path,
+            "-i", narration_mp3_path,
+            "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
+            "-map", "[v]", "-map", "2:a",
+            "-c:v", "libx264", "-preset", "fast", "-b:v", "5M",
+            "-c:a", "aac", "-shortest",
+            final_output_path
+        ]
+    else:
+        cmd_ffmpeg = [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", avatar_video,
+            "-loop", "1", "-i", code_png_path,
+            "-t", "10",
+            "-filter_complex", "[0:v]scale=768:1080:force_original_aspect_ratio=increase,crop=768:1080[left]; [1:v]scale=1152:1080[right]; [left][right]hstack=inputs=2[v]",
+            "-map", "[v]",
+            "-c:v", "libx264", "-preset", "fast", "-b:v", "5M",
+            final_output_path
+        ]
+        
+    try:
+        subprocess.run(cmd_ffmpeg, check=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"FFmpeg composite failed: {e}")
+        
+    jobs[split_job_id] = {
+        "id": split_job_id,
+        "type": "split-composite",
+        "status": "completed",
+        "file_path": final_output_path
+    }
+    
+    return {"job_id": split_job_id, "status": "completed", "file_path": final_output_path}
 
 @app.get("/jobs")
 async def list_jobs():

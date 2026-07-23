@@ -9,3 +9,6 @@ protobuf
 python-multipart
 imageio
 imageio-ffmpeg
+edge-tts
+pygments
+

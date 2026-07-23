@@ -1,5 +1,5 @@
 {
-  "name": "LTX Video Generator con Ollama Qwen",
+  "name": "Generador de Tutoriales 40/60 con Qwen & LTX Video",
   "nodes": [
     {
       "parameters": {},
@@ -22,7 +22,7 @@
             },
             {
               "name": "prompt",
-              "value": "Actúa como un director de cine experto en generar prompts para IA de video (LTX-Video). Escribe una pequeña frase hiper-descriptiva en INGLÉS (máximo 25 palabras) describiendo una toma cinemática fascinante sobre tecnología, programación o hackers. No incluyas explicaciones, responde ÚNICAMENTE con el prompt en inglés."
+              "value": "Actúa como un profesor de programación. Genera un prompt cinemático en INGLÉS de 15 palabras sobre un hacker o programador estilo anime trabajando en un estudio para LTX-Video. Responde únicamente con el prompt en inglés."
             },
             {
               "name": "stream",
@@ -100,7 +100,36 @@
     },
     {
       "parameters": {
-        "url": "=http://ltx-inference:8080/download/{{ $('Start Video Generation').item.json.job_id }}",
+        "method": "POST",
+        "url": "http://ltx-inference:8080/compose",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "job_id",
+              "value": "={{ $('Start Video Generation').item.json.job_id }}"
+            },
+            {
+              "name": "code_text",
+              "value": "# Tutorial de Automatización en Python\nimport torch\n\ndef main():\n    print('¡Video de Tutorial 40/60 completado!')\n\nif __name__ == '__main__':\n    main()"
+            },
+            {
+              "name": "narration_text",
+              "value": "Hola a todos, bienvenidos a este tutorial. Hoy aprenderemos a automatizar la creación de videos usando Inteligencia Artificial local."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "compose-split-node",
+      "name": "Compose 40/60 Split Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [ 1540, 280 ]
+    },
+    {
+      "parameters": {
+        "url": "=http://ltx-inference:8080/download/{{ $json.job_id }}",
         "responseFormat": "file",
         "options": {}
       },
@@ -108,7 +137,7 @@
       "name": "Download Video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [ 1540, 280 ]
+      "position": [ 1760, 280 ]
     }
   ],
   "connections": {
@@ -171,7 +200,7 @@
       "main": [
         [
           {
-            "node": "Download Video",
+            "node": "Compose 40/60 Split Video",
             "type": "main",
             "index": 0
           }
@@ -179,6 +208,17 @@
         [
           {
             "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose 40/60 Split Video": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
             "type": "main",
             "index": 0
           }
